@@ -18,7 +18,13 @@ SECRET_KEY = getenv("SECRET-KEY")
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
-
+# Swagger
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"}
+    },
+    "USE_SESSION_AUTH": False,
+}
 
 # Application definition
 
@@ -29,7 +35,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # My apps
     "rest_framework",
+    "drf_yasg",
+    "swagger",
 ]
 
 MIDDLEWARE = [
