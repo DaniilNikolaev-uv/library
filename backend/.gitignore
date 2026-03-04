@@ -181,3 +181,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Django migrations
+**/migrations/**
+!**/migrations/__init__.py
+
+
