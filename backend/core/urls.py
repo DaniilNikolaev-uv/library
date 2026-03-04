@@ -12,4 +12,6 @@ urlpatterns = [
         name="schema-swagger-ui",
     ),
     path("api/auth/", include("accounts.urls")),
+    path("api/catalog/", include("catalog.urls")),
+    path("api/inventory", include("inventory.urls")),
 ]
