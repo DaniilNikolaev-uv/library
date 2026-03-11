@@ -58,6 +58,11 @@ class LoanViewSet(
         qs = super().get_queryset()
         # Читатель видит только свои выдачи
         user = self.request.user
+
+        # Short-circuit for Swagger schema generation (AnonymousUser)
+        if getattr(self, "swagger_fake_view", False):
+            return qs
+
         from accounts.models import Role
 
         if user.role == Role.READER:

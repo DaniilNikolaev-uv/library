@@ -59,6 +59,7 @@ def issue_book(
         status=Loan.Status.ACTIVE,
     )
     copy.mark_on_loan()
+    _try_audit(staff.user, action="issue", entity=loan)
     return loan
 
 
@@ -91,6 +92,7 @@ def return_book(loan_id: int, staff: Staff, mark_lost: bool = False) -> Loan:
 
     # Создаём штраф если просрочка (если модуль fines подключён)
     _try_create_fine(loan)
+    _try_audit(staff.user, action="return", entity=loan)
 
     return loan
 
@@ -126,6 +128,7 @@ def renew_loan(loan_id: int, staff_or_reader, loan_days: int = LOAN_DAYS) -> Loa
     loan.due_date = date.today() + timedelta(days=loan_days)
     loan.renewals_count += 1
     loan.save(update_fields=["due_date", "renewals_count", "updated_at"])
+    _try_audit(getattr(staff_or_reader, "user", staff_or_reader), action="renew", entity=loan)
     return loan
 
 
@@ -165,5 +168,14 @@ def _try_create_fine(loan: Loan) -> None:
         from fines.services import create_fine_for_loan
 
         create_fine_for_loan(loan)
+    except Exception:
+        pass
+
+
+def _try_audit(user, *, action: str, entity) -> None:
+    try:
+        from audit.services import audit_log
+
+        audit_log(user=user, action=action, entity=entity, data_after={"id": entity.pk})
     except Exception:
         pass
