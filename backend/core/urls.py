@@ -13,6 +13,10 @@ urlpatterns = [
     ),
     path("api/auth/", include("accounts.urls")),
     path("api/catalog/", include("catalog.urls")),
-    path("api/inventory", include("inventory.urls")),
-    path("api/circulation", include("circulation.urls")),
+    path("api/inventory/", include("inventory.urls")),
+    path("api/circulation/", include("circulation.urls")),
+    path("api/reservations/", include("reservations.urls")),
+    path("api/fines/", include("fines.urls")),
+    path("api/reports/", include("reports.urls")),
+    path("api/audit/", include("audit.urls")),
 ]
