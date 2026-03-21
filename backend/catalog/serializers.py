@@ -1,18 +1,14 @@
 from rest_framework import serializers
-
-from .models import Author, Book, Category, Publisher
+from catalog.models import Author, Book, Category, Publisher
 
 
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Author
-        fields = "__all__"
-
-
-class PublisherSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Publisher
-        fields = "__all__"
+        fields = [
+            "id", "first_name", "last_name", "middle_name",
+            "date_of_birth", "date_of_death", "description"
+        ]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -21,19 +17,26 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "parent"]
 
 
+class PublisherSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Publisher
+        fields = ["id", "name", "country", "city"]
+
+
 class BookSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Book
-        fields = "__all__"
-
-
-class BookDetailSerializer(serializers.ModelSerializer):
-    """Для GET — возвращает вложенные объекты, а не просто id."""
-
     authors = AuthorSerializer(many=True, read_only=True)
-    publisher = PublisherSerializer(read_only=True)
-    categories = CategorySerializer(many=True, read_only=True)
+    author_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Author.objects.all(), source="authors", write_only=True
+    )
+    categories = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), many=True, required=False
+    )
 
     class Meta:
         model = Book
-        fields = "__all__"
+        fields = [
+            "id", "title", "subtitle", "authors", "author_ids",
+            "isbn", "year", "categories", "language", "description",
+            "publisher", "cover_image"
+        ]
+        read_only_fields = ["id"]
