@@ -47,7 +47,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Reader(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    card_number = models.IntegerField(max_length=50, unique=True)
+    card_number = models.CharField(max_length=50, unique=True)
     phone_number = models.CharField(max_length=50, unique=True)
     email = models.EmailField(max_length=100, unique=True)
     address = models.CharField(max_length=200)
@@ -63,7 +63,7 @@ class Reader(models.Model):
 
 
 class Staff(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LIBRARIAN)
 
     class Meta:

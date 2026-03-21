@@ -5,7 +5,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 
 from .models import Fine, FinePolicy
-from .permissions import IsAdmin, IsStaff
+from .permissions import IsAdmin, IsStaff, IsStaffOrOwner
 from .serializers import FinePolicySerializer, FineSerializer, PayFineSerializer
 from .services import pay_fine
 
@@ -13,12 +13,25 @@ from .services import pay_fine
 class FineViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = Fine.objects.select_related("loan__reader__user", "loan__copy__book").all()
     serializer_class = FineSerializer
-    permission_classes = [IsStaff]
+    permission_classes = [IsStaffOrOwner]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["status", "loan", "loan__reader"]
     search_fields = ["loan__copy__inventory_number", "loan__copy__book__title", "loan__reader__user__email"]
     ordering_fields = ["created_at", "amount", "paid_amount", "status"]
     ordering = ["-created_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if getattr(self, "swagger_fake_view", False):
+            return qs
+        from accounts.models import Role
+
+        if self.request.user.role == Role.READER:
+            try:
+                return qs.filter(loan__reader=self.request.user.reader)
+            except Exception:
+                return qs.none()
+        return qs
 
     @action(detail=True, methods=["post"], permission_classes=[IsStaff])
     def pay(self, request, pk=None):

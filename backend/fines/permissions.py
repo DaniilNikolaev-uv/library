@@ -20,3 +20,16 @@ class IsAdmin(BasePermission):
             and request.user.role == Role.ADMIN
         )
 
+
+class IsStaffOrOwner(BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.role in (Role.ADMIN, Role.LIBRARIAN):
+            return True
+        try:
+            return obj.loan.reader.user_id == request.user.pk
+        except Exception:
+            return False
+

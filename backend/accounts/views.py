@@ -1,22 +1,28 @@
+from rest_framework import viewsets, status, generics, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from rest_framework import generics, permissions
-from rest_framework_simplejwt.views import TokenObtainPairView
-
-from .models import Reader
-from .serializers import (
-    ReaderSerializer,
-    RegisterReaderSerializer,
-    RegisterSerializer,
-    UserSerializer,
-)
+from accounts.models import Reader, Staff
+from accounts.serializers import UserSerializer, UserCreateSerializer, ReaderSerializer
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 User = get_user_model()
 
 
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all().order_by("-id")
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        return UserSerializer
+
+
+class ReaderViewSet(viewsets.ModelViewSet):
+    queryset = Reader.objects.all().order_by("-id")
+    serializer_class = ReaderSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
 
 class MeView(generics.RetrieveUpdateAPIView):
@@ -25,11 +31,6 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
-
-
-class RegisterReaderView(generics.CreateAPIView):
-    serializer_class = RegisterReaderSerializer
-    permission_classes = [permissions.AllowAny]
 
 
 class ReaderMeView(generics.RetrieveUpdateAPIView):
