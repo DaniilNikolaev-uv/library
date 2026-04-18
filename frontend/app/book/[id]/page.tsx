@@ -43,18 +43,27 @@ export default function BookPage() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="text-sm text-zinc-500 dark:text-zinc-400">
-          {book.year} {book.isbn ? `• ISBN ${book.isbn}` : null}
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <img
+            src={book.cover_url || book.cover_image || "https://placehold.co/200x300?text=No+Cover"}
+            alt={`Обложка: ${book.title}`}
+            className="h-[240px] w-[160px] rounded-lg object-cover ring-1 ring-zinc-200 dark:ring-zinc-800"
+          />
+          <div className="min-w-0">
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">
+              {book.year} {book.isbn ? `• ISBN ${book.isbn}` : null}
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">{book.title}</h1>
+            {book.subtitle ? (
+              <div className="mt-2 text-zinc-700 dark:text-zinc-300">{book.subtitle}</div>
+            ) : null}
+            {book.description ? (
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                {book.description}
+              </p>
+            ) : null}
+          </div>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{book.title}</h1>
-        {book.subtitle ? (
-          <div className="mt-2 text-zinc-700 dark:text-zinc-300">{book.subtitle}</div>
-        ) : null}
-        {book.description ? (
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            {book.description}
-          </p>
-        ) : null}
       </div>
     </div>
   );

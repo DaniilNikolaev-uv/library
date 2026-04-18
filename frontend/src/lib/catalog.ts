@@ -9,6 +9,7 @@ export type Book = {
   language?: string;
   description?: string;
   cover_image?: string | null;
+  cover_url?: string | null;
 };
 
 export type Paginated<T> = {
