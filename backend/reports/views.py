@@ -26,7 +26,7 @@ class ReportsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def top_books(self, request):
         """
-        GET /api/reports/top-books/?from=YYYY-MM-DD&to=YYYY-MM-DD
+        GET /api/reports/top_books/?from=YYYY-MM-DD&to=YYYY-MM-DD
         """
         from_date = _parse_date(request.query_params.get("from"))
         to_date = _parse_date(request.query_params.get("to"))
