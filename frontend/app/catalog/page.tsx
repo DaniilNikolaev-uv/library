@@ -82,15 +82,25 @@ export default function CatalogPage() {
             href={`/book/${b.id}`}
             className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
           >
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-              {b.year} {b.isbn ? `• ISBN ${b.isbn}` : null}
-            </div>
-            <div className="mt-1 font-semibold leading-snug">{b.title}</div>
-            {b.subtitle ? (
-              <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {b.subtitle}
+            <div className="flex gap-3">
+              <img
+                src={b.cover_url || b.cover_image || "https://placehold.co/120x180?text=No+Cover"}
+                alt={`Обложка: ${b.title}`}
+                className="h-[120px] w-[80px] rounded-md object-cover ring-1 ring-zinc-200 dark:ring-zinc-800"
+                loading="lazy"
+              />
+              <div className="min-w-0">
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {b.year} {b.isbn ? `• ISBN ${b.isbn}` : null}
+                </div>
+                <div className="mt-1 font-semibold leading-snug">{b.title}</div>
+                {b.subtitle ? (
+                  <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    {b.subtitle}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            </div>
           </Link>
         ))}
       </div>
