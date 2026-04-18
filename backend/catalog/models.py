@@ -40,6 +40,7 @@ class Book(models.Model):
         related_name="books",
     )
     isbn = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    cover_url = models.URLField(max_length=500, null=True, blank=True)
     year = models.PositiveSmallIntegerField()
     categories = models.ManyToManyField("Category", related_name="books", blank=True)
     language = models.CharField(max_length=50, default="ru")
