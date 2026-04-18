@@ -120,7 +120,7 @@ def renew_loan(loan_id: int, staff_or_reader, loan_days: int = LOAN_DAYS) -> Loa
 
     # Проверка наличия активной брони на этот экземпляр другим читателем
     has_reservation = _copy_has_active_reservation(
-        loan.copy_id, exclude_reader=loan.reader_id
+        loan.copy_id, exclude_reader_id=loan.reader_id
     )
     if has_reservation:
         raise LoanError("На этот экземпляр есть активная бронь другого читателя.")
