@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from accounts.models import Reader, Staff, User, Role
+from catalog.covers import PLACEHOLDER_COVER_URL, get_cover_url
 from catalog.models import Author, Book, Category, Publisher
 from circulation.models import Loan
 from fines.models import FinePolicy, Fine
@@ -282,22 +283,73 @@ class Command(BaseCommand):
         ]
 
         books = []
+        known_isbns = [
+            "9780451524935",  # 1984
+            "9780141439600",  # Pride and Prejudice
+            "9780140449136",  # The Odyssey
+            "9780140449266",  # Crime and Punishment
+            "9780140449181",  # Anna Karenina
+            "9780061120084",  # To Kill a Mockingbird
+            "9780743273565",  # The Great Gatsby
+            "9780547928227",  # The Hobbit
+            "9780618640157",  # The Lord of the Rings
+            "9780439139601",  # Harry Potter 4
+            "9780307474278",  # The Road
+            "9780140283334",  # Lord of the Flies
+            "9780142437230",  # Moby-Dick
+            "9780140449273",  # Brothers Karamazov
+            "9780143039433",  # The Idiot
+            "9780679783268",  # Don Quixote
+            "9780143105985",  # Meditations
+            "9780679720201",  # One Hundred Years of Solitude
+            "9780553213119",  # Dracula
+            "9780486280615",  # The Picture of Dorian Gray
+            "9780140444308",  # The Divine Comedy
+            "9780140447934",  # The Count of Monte Cristo
+            "9780140447927",  # The Three Musketeers
+            "9780486415864",  # The Adventures of Huckleberry Finn
+            "9780141439518",  # Jane Eyre
+            "9780141439556",  # Wuthering Heights
+            "9780140449266",  # Crime and Punishment alt copy (will be skipped if used)
+            "9780141182803",  # Nineteen Eighty-Four
+            "9780142424179",  # The Fault in Our Stars
+            "9780307387899",  # The Road (alt)
+        ]
+        used_isbns = set()
+
+        def get_next_isbn():
+            while known_isbns:
+                candidate = known_isbns.pop(0)
+                if candidate not in used_isbns:
+                    used_isbns.add(candidate)
+                    return candidate
+            return None
+
         for i, title in enumerate(book_titles):
             author = random.choice(authors)
             cats = random.choice(category_groups)
             year = random.randint(1800, 2024)
             subtitle = random.choice(book_subtitles)
+            isbn = get_next_isbn() if i < 30 else None
+            cover_url = get_cover_url(isbn) if isbn else PLACEHOLDER_COVER_URL
             
             book, _ = Book.objects.get_or_create(
                 title=title,
                 defaults={
                     "subtitle": subtitle if subtitle != "" else None,
+                    "isbn": isbn,
+                    "cover_url": cover_url,
                     "year": year,
                     "language": random.choice(["ru", "en", "de", "fr"]),
                     "publisher": random.choice(publishers),
                     "description": f"Описание для книги '{title}'. Это тестовое описание книги.",
                 },
             )
+            if not book.isbn and isbn:
+                book.isbn = isbn
+            if not book.cover_url:
+                book.cover_url = get_cover_url(book.isbn) if book.isbn else PLACEHOLDER_COVER_URL
+            book.save(update_fields=["isbn", "cover_url"])
             book.authors.add(author)
             for cat in cats:
                 book.categories.add(cat)
@@ -313,9 +365,12 @@ class Command(BaseCommand):
                 author = random.choice(authors)
                 cats = random.choice(category_groups)
                 year = random.randint(1900, 2024)
+                isbn = get_next_isbn()
                 
                 book = Book.objects.create(
                     title=title,
+                    isbn=isbn,
+                    cover_url=get_cover_url(isbn) if isbn else PLACEHOLDER_COVER_URL,
                     year=year,
                     language=random.choice(["ru", "en"]),
                     publisher=random.choice(publishers),
