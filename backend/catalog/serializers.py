@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from catalog.models import Author, Book, Category, Publisher
-from catalog.covers import PLACEHOLDER_COVER_URL, get_cover_url
+from catalog.covers import PLACEHOLDER_COVER_URL, get_cover_url, lookup_isbn
 
 
 class AuthorSerializer(serializers.ModelSerializer):
@@ -49,13 +49,38 @@ class BookSerializer(serializers.ModelSerializer):
             return current_value
         return PLACEHOLDER_COVER_URL
 
+    def _resolve_isbn(self, validated_data, instance=None) -> str | None:
+        explicit_isbn = validated_data.get("isbn")
+        if explicit_isbn:
+            return explicit_isbn
+        if instance and instance.isbn:
+            return instance.isbn
+
+        title = validated_data.get("title") or getattr(instance, "title", "") or ""
+        authors = validated_data.get("authors")
+        author_name = None
+        if authors:
+            first_author = authors[0]
+            author_name = " ".join(
+                x for x in [first_author.first_name, first_author.last_name] if x
+            ).strip()
+        elif instance:
+            first_author = instance.authors.first()
+            if first_author:
+                author_name = " ".join(
+                    x for x in [first_author.first_name, first_author.last_name] if x
+                ).strip()
+        return lookup_isbn(title=title, author=author_name)
+
     def create(self, validated_data):
-        isbn = validated_data.get("isbn")
+        isbn = self._resolve_isbn(validated_data)
+        validated_data["isbn"] = isbn
         validated_data["cover_url"] = self._resolve_cover_url(isbn)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        isbn = validated_data.get("isbn", instance.isbn)
+        isbn = self._resolve_isbn(validated_data, instance=instance)
+        validated_data["isbn"] = isbn
         validated_data["cover_url"] = self._resolve_cover_url(
             isbn,
             current_value=instance.cover_url,
