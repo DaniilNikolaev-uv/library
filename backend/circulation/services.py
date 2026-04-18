@@ -173,9 +173,15 @@ def _try_create_fine(loan: Loan) -> None:
 
 
 def _try_audit(user, *, action: str, entity) -> None:
-    try:
-        from audit.services import audit_log
+    def _log():
+        try:
+            from audit.services import audit_log
 
-        audit_log(user=user, action=action, entity=entity, data_after={"id": entity.pk})
+            audit_log(user=user, action=action, entity=entity, data_after={"id": entity.pk})
+        except Exception:
+            pass
+
+    try:
+        transaction.on_commit(_log)
     except Exception:
-        pass
+        _log()

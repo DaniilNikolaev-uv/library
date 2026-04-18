@@ -12,5 +12,16 @@ class LoanSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "issue_date", "issued_by", "status", "renewals_count"]
 
 
+class LoanIssueSerializer(serializers.Serializer):
+    copy = serializers.IntegerField()
+    reader = serializers.IntegerField()
+    loan_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
+
+
 class LoanReturnSerializer(serializers.Serializer):
     return_date = serializers.DateField(required=False)
+    mark_lost = serializers.BooleanField(required=False, default=False)
+
+
+class LoanProlongSerializer(serializers.Serializer):
+    loan_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
