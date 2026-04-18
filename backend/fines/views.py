@@ -53,6 +53,7 @@ class FineViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.Gen
                 user=request.user,
                 action=AuditAction.PAY_FINE,
                 entity=fine,
+                data_before={},
                 data_after={"paid_amount": str(fine.paid_amount), "status": fine.status},
             )
         except Exception:

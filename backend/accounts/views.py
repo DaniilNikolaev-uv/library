@@ -38,4 +38,4 @@ class ReaderMeView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user.reader_profile
+        return self.request.user.reader
