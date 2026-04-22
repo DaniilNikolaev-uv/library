@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcheck</title>
+    <style>
+        :root {
+            --bg: #0b0b0b;
+            --panel: #121212;
+            --line: #242424;
+            --text: #f4f4f4;
+            --muted: #8b8b8b;
+            --good: #22c55e;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            padding: 24px 16px;
+            color: var(--text);
+            font-family: "IBM Plex Mono", "SFMono-Regular", "Consolas", monospace;
+            background: var(--bg);
+        }
+
+        .shell {
+            width: min(760px, 100%);
+            margin: 0 auto;
+        }
+
+        .panel,
+        .service {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+        }
+
+        .panel {
+            padding: 18px;
+            margin-bottom: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .sub {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-top: 14px;
+        }
+
+        .button {
+            border: 1px solid #343434;
+            background: #171717;
+            color: var(--text);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .button:hover:not(:disabled) {
+            background: #1d1d1d;
+            border-color: #4a4a4a;
+        }
+
+        .button:disabled {
+            cursor: default;
+            opacity: 0.65;
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .auth {
+            display: grid;
+            gap: 10px;
+            max-width: 360px;
+        }
+
+        .field {
+            width: 100%;
+            border: 1px solid #343434;
+            background: #171717;
+            color: var(--text);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .message {
+            color: var(--muted);
+            font-size: 12px;
+            min-height: 18px;
+        }
+
+        .message.bad {
+            color: var(--bad);
+        }
+
+        .list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .service {
+            display: grid;
+            grid-template-columns: 14px 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 16px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--muted);
+        }
+
+        .dot.good {
+            background: var(--good);
+        }
+
+        .dot.warning {
+            background: var(--warn);
+        }
+
+        .dot.bad {
+            background: var(--bad);
+        }
+
+        .service-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .service-meta {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .status {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+
+        .status.good {
+            color: var(--good);
+        }
+
+        .status.warning {
+            color: var(--warn);
+        }
+
+        .status.bad {
+            color: var(--bad);
+        }
+
+        .empty {
+            padding: 32px;
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed #2b2b2b;
+            border-radius: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .service {
+                grid-template-columns: 14px 1fr;
+            }
+
+            .status {
+                grid-column: 2;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="shell">
+    <section class="panel">
+        <h1>healthcheck</h1>
+        <div class="sub">admin login required</div>
+        <form class="auth hidden" id="loginForm">
+            <input class="field" id="emailInput" type="email" placeholder="admin email" autocomplete="username" required>
+            <input class="field" id="passwordInput" type="password" placeholder="password" autocomplete="current-password" required>
+            <div class="toolbar">
+                <button class="button" type="submit" id="loginBtn">login</button>
+            </div>
+            <div class="message" id="loginMessage"></div>
+        </form>
+        <div id="dashboardBox" class="hidden">
+            <div class="sub" id="userLabel">signed in</div>
+            <div class="toolbar">
+                <button class="button" id="refreshBtn">refresh</button>
+                <button class="button" id="logoutBtn">logout</button>
+                <div class="meta">
+                    <span id="summaryText">Loading...</span>
+                    <span id="lastUpdated">Last updated: -</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="list" id="servicesGrid">
+        <div class="empty">Loading checks...</div>
+    </section>
+</main>
+
+<script>
+    const loginForm = document.getElementById("loginForm");
+    const dashboardBox = document.getElementById("dashboardBox");
+    const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginMessage = document.getElementById("loginMessage");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const servicesGrid = document.getElementById("servicesGrid");
+    const summaryText = document.getElementById("summaryText");
+    const lastUpdated = document.getElementById("lastUpdated");
+    const userLabel = document.getElementById("userLabel");
+    let poller = null;
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"]/g, (char) => {
+            if (char === "&") return "&amp;";
+            if (char === "<") return "&lt;";
+            if (char === ">") return "&gt;";
+            return "&quot;";
+        });
+    }
+
+    function statusClass(status) {
+        if (status === "up") return "good";
+        if (status === "degraded") return "warning";
+        return "bad";
+    }
+
+    function statusLabel(status) {
+        if (status === "up") return "UP";
+        if (status === "degraded") return "WARN";
+        return "DOWN";
+    }
+
+    function renderServices(services) {
+        if (!services.length) {
+            servicesGrid.innerHTML = '<div class="empty">No configured services.</div>';
+            return;
+        }
+
+        servicesGrid.innerHTML = services.map((service) => {
+            const currentClass = statusClass(service.status);
+            const responseTime = service.response_time_ms == null ? "-" : service.response_time_ms + " ms";
+            const details = service.details || "-";
+
+            return `
+                <article class="service">
+                    <div class="dot ${currentClass}"></div>
+                    <div>
+                        <div>
+                            <div class="service-name">${escapeHtml(service.name)}</div>
+                            <div class="service-meta">${escapeHtml(service.target)}</div>
+                            <div class="service-meta">${escapeHtml(details)} / ${escapeHtml(responseTime)}</div>
+                        </div>
+                    </div>
+                    <div class="status ${currentClass}">${statusLabel(service.status)}</div>
+                </article>
+            `;
+        }).join("");
+    }
+
+    function renderSummary(services) {
+        const upCount = services.filter((item) => item.status === "up").length;
+        const degradedCount = services.filter((item) => item.status === "degraded").length;
+        const downCount = services.filter((item) => item.status === "down").length;
+        summaryText.textContent = `${upCount} up / ${degradedCount} warning / ${downCount} down`;
+    }
+
+    function showLogin(message = "") {
+        loginForm.classList.remove("hidden");
+        dashboardBox.classList.add("hidden");
+        servicesGrid.innerHTML = '<div class="empty">Login required.</div>';
+        summaryText.textContent = "Authentication required";
+        lastUpdated.textContent = "Last updated: -";
+        loginMessage.textContent = message;
+        loginMessage.className = message ? "message bad" : "message";
+        if (poller) {
+            clearInterval(poller);
+            poller = null;
+        }
+    }
+
+    function showDashboard(email) {
+        loginForm.classList.add("hidden");
+        dashboardBox.classList.remove("hidden");
+        userLabel.textContent = `signed in as ${email}`;
+        loginMessage.textContent = "";
+        loginMessage.className = "message";
+    }
+
+    async function loadSession() {
+        const response = await fetch("/api/session", { cache: "no-store" });
+        if (response.status === 401) {
+            showLogin();
+            return false;
+        }
+        if (!response.ok) {
+            showLogin("Session check failed");
+            return false;
+        }
+
+        const data = await response.json();
+        showDashboard(data.email || "admin");
+        return true;
+    }
+
+    async function loadHealth() {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = "checking...";
+
+        try {
+            const response = await fetch("/api/health", {
+                method: "GET",
+                cache: "no-store",
+                headers: { "Cache-Control": "no-cache" }
+            });
+
+            if (response.status === 401) {
+                showLogin("Session expired");
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`Health API returned ${response.status}`);
+            }
+
+            const data = await response.json();
+            showDashboard(data.user || "admin");
+            renderServices(data.services || []);
+            renderSummary(data.services || []);
+            lastUpdated.textContent = `Last updated: ${data.generated_at || "-"}`;
+        } catch (error) {
+            servicesGrid.innerHTML = `<div class="empty">${escapeHtml(error.message || "Health API request failed")}</div>`;
+            summaryText.textContent = "Monitor unavailable";
+            lastUpdated.textContent = "Last updated: -";
+        } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = "refresh";
+        }
+    }
+
+    function startPolling() {
+        if (poller) {
+            clearInterval(poller);
+        }
+        poller = setInterval(loadHealth, 15000);
+    }
+
+    loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        loginBtn.disabled = true;
+        loginBtn.textContent = "checking...";
+        loginMessage.textContent = "";
+
+        try {
+            const response = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: emailInput.value.trim(),
+                    password: passwordInput.value
+                })
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.detail || `Login failed: ${response.status}`);
+            }
+
+            passwordInput.value = "";
+            showDashboard(data.email || emailInput.value.trim());
+            await loadHealth();
+            startPolling();
+        } catch (error) {
+            showLogin(error.message || "Login failed");
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.textContent = "login";
+        }
+    });
+
+    refreshBtn.addEventListener("click", loadHealth);
+    logoutBtn.addEventListener("click", async () => {
+        await fetch("/api/logout", { cache: "no-store" });
+        showLogin();
+    });
+
+    window.addEventListener("DOMContentLoaded", async () => {
+        const authenticated = await loadSession();
+        if (!authenticated) {
+            return;
+        }
+        await loadHealth();
+        startPolling();
+    });
+</script>
+</body>
+</html>

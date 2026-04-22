@@ -1,0 +1,116 @@
+services:
+  archerion_backend: 
+    container_name: archerion_backend
+    build: backend/.
+    env_file:
+      - backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - archerion_db
+      - archerion_minio
+    networks:
+      archerion:
+        aliases:
+          - archerion-backend
+
+  archerion_frontend:
+    container_name: archerion_frontend
+    build: frontend/.
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - archerion_backend
+    networks:
+      archerion:
+        aliases:
+          - archerion-frontend
+
+  archerion_db:
+    image: postgres:16  
+    container_name: archerion_db
+    restart: always
+    environment:
+      POSTGRES_USER: archerion        
+      POSTGRES_PASSWORD: archerion 
+      POSTGRES_DB: archerion     
+    ports:
+      - "5432:5432"               
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - archerion
+  archerion_minio:
+    image: quay.io/minio/minio:latest
+    container_name: archerion_minio
+    ports:
+      - "9000:9000"    # API port
+      - "9001:9001"    # Web Console port
+    environment:
+      MINIO_ROOT_USER: archerion
+      MINIO_ROOT_PASSWORD: archerion
+    volumes:
+      - minio:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      archerion:
+        aliases:
+          - archerion-minio
+
+  pgadmin:
+      image: dpage/pgadmin4
+      container_name: pgadmin_archerion
+      restart: always
+      environment:
+        PGADMIN_DEFAULT_EMAIL: archerion@archerion.com
+        PGADMIN_DEFAULT_PASSWORD: archerion
+      ports:
+        - "5050:80"
+      volumes:
+        - pgadmin_data:/var/lib/pgadmin
+      depends_on:
+        - archerion_db
+      networks:
+        - archerion
+
+  archerion_healthcheck:
+    build: healthcheck/.
+    container_name: archerion_healthcheck
+    environment:
+      HEALTHCHECK_BACKEND_URL: http://archerion-backend:8000
+      HEALTHCHECK_FRONTEND_URL: http://archerion-frontend:3000
+      HEALTHCHECK_BACKEND_HEALTH_URL: http://archerion-backend:8000/swagger/
+      HEALTHCHECK_MINIO_API_URL: http://archerion-minio:9000/minio/health/live
+      HEALTHCHECK_MINIO_CONSOLE_URL: http://archerion-minio:9001/
+      HEALTHCHECK_PGADMIN_URL: http://pgadmin:80/
+      HEALTHCHECK_POSTGRES_HOST: archerion_db
+      HEALTHCHECK_POSTGRES_PORT: "5432"
+      HEALTHCHECK_SESSION_SECRET: change-me-in-production
+      HEALTHCHECK_SECURE_COOKIES: "false"
+    ports:
+      - "8085:8085"
+    depends_on:
+      - archerion_backend
+      - archerion_frontend
+      - archerion_db
+      - archerion_minio
+      - pgadmin
+    networks:
+      archerion:
+        aliases:
+          - archerion-healthcheck
+      
+volumes:
+  pgdata:
+  pgadmin_data:
+  minio:
+
+networks:
+  archerion:
