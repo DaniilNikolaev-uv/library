@@ -9,9 +9,31 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def env_bool(name: str, default: bool = False) -> bool:
+    value = getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_str(name: str, default: str | None = None) -> str | None:
+    value = getenv(name)
+    if value is None:
+        return default
+    cleaned = value.strip()
+    return cleaned or default
+
+
+def env_list(name: str) -> list[str]:
+    value = getenv(name)
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 SECRET_KEY = getenv("SECRET-KEY")
 
-DEBUG = True
+DEBUG = env_bool("Debug", default=False)
 
 ALLOWED_HOSTS = ["*"]
 
@@ -46,10 +68,12 @@ INSTALLED_APPS = [
     "storage",
     "django_filters",
 ]
-AWS_ACCESS_KEY_ID = getenv("MINIO_ACCESS_KEY")
-AWS_SECRET_ACCESS_KEY = getenv("MINIO_SECRET_KEY")
-AWS_STORAGE_BUCKET_NAME = getenv("MINIO_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = getenv("MINIO_ENDPOINT")  # например http://localhost:9000
+AWS_ACCESS_KEY_ID = env_str("MINIO_ACCESS_KEY")
+AWS_SECRET_ACCESS_KEY = env_str("MINIO_SECRET_KEY")
+AWS_STORAGE_BUCKET_NAME = env_str("MINIO_BUCKET_NAME")
+AWS_S3_ENDPOINT_URL = env_str("MINIO_ENDPOINT")
+if AWS_S3_ENDPOINT_URL and not AWS_S3_ENDPOINT_URL.startswith(("http://", "https://")):
+    AWS_S3_ENDPOINT_URL = f"http://{AWS_S3_ENDPOINT_URL}"
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = "public-read"
 
@@ -67,10 +91,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# CORS (dev)
-if DEBUG:
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", default=True)
+
+if DEBUG and not CORS_ALLOWED_ORIGINS:
     CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = "core.urls"
 
@@ -104,7 +129,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 
 # Database
 
-if getenv("USE_POSTGRESQL") == "True":
+if env_bool("USE_POSTGRESQL", default=False):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
