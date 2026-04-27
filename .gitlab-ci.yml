@@ -1,0 +1,26 @@
+stages: 
+  - build-backend
+  - build-frontend
+  - deploy
+
+
+backend-build:
+  stage: build-backend
+  tags:
+    - production
+  script:
+    - docker compose build archerion_backend
+
+frontend-build:
+  stage: build-frontend
+  tags: 
+    - production
+  script:
+    - docker compose build archerion_frontend
+
+archerion_deploy:
+  stage: deploy
+  tags:
+    - production
+  script:
+    - docker compose up -d 
