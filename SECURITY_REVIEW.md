@@ -39,7 +39,7 @@
 - оставить только `healthcheck/.env-example`;
 - сгенерировать новый длинный случайный `HEALTHCHECK_SESSION_SECRET`.
 
-### 2. `ALLOWED_HOSTS` открыт на все домены
+### 2. `ALLOWED_HOSTS` открыт на все домены [✔]
 
 Файл:
 
