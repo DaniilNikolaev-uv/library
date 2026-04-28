@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -17,6 +18,13 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("healthcheck")
 
 ROOT = Path(__file__).resolve().parent
 HOST = os.getenv("HEALTHCHECK_BIND_HOST", "0.0.0.0")
@@ -188,6 +196,7 @@ def parse_session_cookie(cookie_header: str | None) -> str | None:
 
 def auth_with_backend(email: str, password: str) -> tuple[bool, str]:
     try:
+        logger.info("Attempting backend auth for user: %s", email)
         token_data = json_request(
             f"{BACKEND_BASE_URL}/api/auth/login/",
             method="POST",
@@ -195,11 +204,14 @@ def auth_with_backend(email: str, password: str) -> tuple[bool, str]:
         )
         access_token = token_data.get("access")
         if not access_token:
+            logger.warning("Auth failed for %s: no access token in response", email)
             return False, "Backend auth failed"
 
         me_data = json_request(f"{BACKEND_BASE_URL}/api/auth/me/", token=access_token)
         if not is_healthcheck_user(me_data):
+            logger.warning("Access denied for %s: insufficient permissions", email)
             return False, "Staff or admin access required"
+        logger.info("User %s successfully authenticated", email)
         return True, me_data.get("email", email)
     except HTTPError as error:
         detail = ""
@@ -208,19 +220,18 @@ def auth_with_backend(email: str, password: str) -> tuple[bool, str]:
             if raw:
                 payload = json.loads(raw)
                 if isinstance(payload, dict):
-                    detail = str(
-                        payload.get("detail")
-                        or payload.get("message")
-                        or payload
-                    )
+                    detail = str(payload.get("detail") or payload.get("message") or payload)
                 else:
                     detail = str(payload)
         except Exception:
             detail = ""
         if error.code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN, HTTPStatus.BAD_REQUEST}:
+            logger.warning("Auth rejected for %s with HTTP %s: %s", email, error.code, detail or "Invalid credentials")
             return False, detail or "Invalid credentials"
+        logger.error("Backend returned HTTP %s during auth for %s", error.code, email)
         return False, f"Backend returned HTTP {error.code}"
-    except (URLError, TimeoutError, ConnectionResetError, OSError):
+    except (URLError, TimeoutError, ConnectionResetError, OSError) as error:
+        logger.error("Backend auth unavailable for %s: %s", email, error)
         return False, "Backend auth unavailable"
 
 
@@ -233,33 +244,33 @@ def check_http(key: str, name: str, target: str, container: str | None) -> Servi
         with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             elapsed = int((time.perf_counter() - started) * 1000)
             status_code = response.getcode()
-            if 200 <= status_code < 400:
-                status = "up"
-            else:
-                status = "degraded"
-            return ServiceCheck(
+            status = "up" if 200 <= status_code < 400 else "degraded"
+            result = ServiceCheck(
                 key, name, "http", target, container, status, f"HTTP {status_code}", checked_at, elapsed
             )
     except HTTPError as error:
         elapsed = int((time.perf_counter() - started) * 1000)
         status = "degraded" if error.code < 500 else "down"
-        return ServiceCheck(
+        result = ServiceCheck(
             key, name, "http", target, container, status, f"HTTP {error.code}", checked_at, elapsed
         )
     except URLError as error:
-        return ServiceCheck(
+        result = ServiceCheck(
             key, name, "http", target, container, "down", f"Network error: {error.reason}", checked_at, None
         )
     except ConnectionResetError:
-        return ServiceCheck(
+        result = ServiceCheck(
             key, name, "http", target, container, "down", "Connection reset by peer", checked_at, None
         )
     except OSError as error:
-        return ServiceCheck(
+        result = ServiceCheck(
             key, name, "http", target, container, "down", f"Socket error: {error.strerror or error}", checked_at, None
         )
     except TimeoutError:
-        return ServiceCheck(key, name, "http", target, container, "down", "Timeout", checked_at, None)
+        result = ServiceCheck(key, name, "http", target, container, "down", "Timeout", checked_at, None)
+
+    logger.info("Check HTTP [%s]: %s (%s) - %sms", key, result.status.upper(), result.details, result.response_time_ms)
+    return result
 
 
 def check_tcp(key: str, name: str, host: str, port: int, container: str | None) -> ServiceCheck:
@@ -268,7 +279,7 @@ def check_tcp(key: str, name: str, host: str, port: int, container: str | None) 
     try:
         with socket.create_connection((host, port), timeout=TIMEOUT_SECONDS):
             elapsed = int((time.perf_counter() - started) * 1000)
-            return ServiceCheck(
+            result = ServiceCheck(
                 key,
                 name,
                 "tcp",
@@ -280,13 +291,16 @@ def check_tcp(key: str, name: str, host: str, port: int, container: str | None) 
                 elapsed,
             )
     except TimeoutError:
-        return ServiceCheck(
+        result = ServiceCheck(
             key, name, "tcp", f"{host}:{port}", container, "down", "Connection timeout", checked_at, None
         )
     except OSError as error:
-        return ServiceCheck(
+        result = ServiceCheck(
             key, name, "tcp", f"{host}:{port}", container, "down", f"Socket error: {error.strerror or error}", checked_at, None
         )
+
+    logger.info("Check TCP [%s]: %s (%s) - %sms", key, result.status.upper(), result.details, result.response_time_ms)
+    return result
 
 
 def get_service_logs(service_key: str) -> dict[str, str | int | bool]:
@@ -349,6 +363,7 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def do_GET(self) -> None:
+        logger.debug("GET request: %s", self.path)
         if self.path == "/api/health":
             self.respond_health()
             return
@@ -366,13 +381,14 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:
+        logger.debug("POST request: %s", self.path)
         if self.path == "/api/login":
             self.respond_login()
             return
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def log_message(self, format: str, *args) -> None:
-        return
+        logger.info("%s - %s", self.address_string(), format % args)
 
     def current_user(self) -> str | None:
         return parse_session_cookie(self.headers.get("Cookie"))
@@ -380,6 +396,7 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
     def require_auth(self) -> str | None:
         user = self.current_user()
         if not user:
+            logger.warning("Unauthorized request to %s from %s", self.path, self.address_string())
             self.respond_json(HTTPStatus.UNAUTHORIZED, {"detail": "Authentication required"})
             return None
         return user
@@ -448,7 +465,13 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
         user = self.require_auth()
         if not user:
             return
+        logger.info("Running health checks for user: %s", user)
         services = run_checks()
+        down_count = sum(1 for s in services if s.status == "down")
+        if down_count > 0:
+            logger.warning("Health check complete: %s services are down", down_count)
+        else:
+            logger.info("Health check complete: all systems nominal")
         payload = {
             "generated_at": utc_now(),
             "user": user,
@@ -474,19 +497,26 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
             self.respond_json(HTTPStatus.BAD_REQUEST, {"detail": "Query parameter 'service' is required"})
             return
 
+        logger.info("User %s requested logs for: %s", user, service_key)
         try:
             payload = get_service_logs(service_key)
         except KeyError:
             self.respond_json(HTTPStatus.NOT_FOUND, {"detail": "Unknown service"})
             return
 
+        if not payload["available"]:
+            logger.error("Failed to fetch logs for %s: %s", service_key, payload["logs"])
         self.respond_json(HTTPStatus.OK, payload)
 
 
 def main() -> None:
     server = ThreadingHTTPServer((HOST, PORT), HealthcheckHandler)
-    print(f"Healthcheck server running at http://{HOST}:{PORT}")
-    server.serve_forever()
+    logger.info("Healthcheck server running at http://%s:%s", HOST, PORT)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        logger.info("Server stopping...")
+        server.server_close()
 
 
 if __name__ == "__main__":
