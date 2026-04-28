@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from accounts.models import User, Reader, Role
+from accounts.models import User, Reader, Role, Staff
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -19,6 +19,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop("password")
         user = User.objects.create_user(password=password, **validated_data)
+        if user.role in (Role.ADMIN, Role.LIBRARIAN):
+            Staff.objects.get_or_create(user=user, defaults={"role": user.role})
         return user
 
 

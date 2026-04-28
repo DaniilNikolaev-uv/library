@@ -122,8 +122,16 @@ def json_request(url: str, method: str = "GET", payload: dict | None = None, tok
         return json.loads(raw) if raw else {}
 
 
-def is_admin_user(user_data: dict) -> bool:
-    return bool(user_data.get("is_staff")) or user_data.get("role") == "admin"
+def is_healthcheck_user(user_data: dict) -> bool:
+    role = str(user_data.get("role") or "").strip().lower()
+    librarian_aliases = {
+        "librarian",
+        "librian",
+        "librariаn",
+        "bibliotekar",
+        "bibliotekарь",
+    }
+    return bool(user_data.get("is_staff")) or role == "admin" or role in librarian_aliases
 
 
 def make_signature(payload: bytes) -> str:
@@ -190,12 +198,27 @@ def auth_with_backend(email: str, password: str) -> tuple[bool, str]:
             return False, "Backend auth failed"
 
         me_data = json_request(f"{BACKEND_BASE_URL}/api/auth/me/", token=access_token)
-        if not is_admin_user(me_data):
-            return False, "Admin access required"
+        if not is_healthcheck_user(me_data):
+            return False, "Staff or admin access required"
         return True, me_data.get("email", email)
     except HTTPError as error:
+        detail = ""
+        try:
+            raw = error.read().decode("utf-8")
+            if raw:
+                payload = json.loads(raw)
+                if isinstance(payload, dict):
+                    detail = str(
+                        payload.get("detail")
+                        or payload.get("message")
+                        or payload
+                    )
+                else:
+                    detail = str(payload)
+        except Exception:
+            detail = ""
         if error.code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN, HTTPStatus.BAD_REQUEST}:
-            return False, "Invalid credentials"
+            return False, detail or "Invalid credentials"
         return False, f"Backend returned HTTP {error.code}"
     except (URLError, TimeoutError, ConnectionResetError, OSError):
         return False, "Backend auth unavailable"

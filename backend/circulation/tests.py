@@ -167,3 +167,69 @@ class CirculationApiTests(TestCase):
         results = response.data["results"] if isinstance(response.data, dict) else response.data
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["reader"], self.reader.id)
+
+    def test_staff_can_get_issue_options(self):
+        response = self.client.get("/api/circulation/loans/issue_options/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["readers"]), 1)
+        self.assertEqual(response.data["readers"][0]["id"], self.reader.id)
+        self.assertEqual(response.data["readers"][0]["card_number"], self.reader.card_number)
+        self.assertEqual(len(response.data["copies"]), 1)
+        self.assertEqual(response.data["copies"][0]["id"], self.copy.id)
+        self.assertEqual(
+            response.data["copies"][0]["inventory_number"],
+            self.copy.inventory_number,
+        )
+
+    def test_reader_cannot_get_issue_options(self):
+        self.client.force_authenticate(user=self.reader_user)
+
+        response = self.client.get("/api/circulation/loans/issue_options/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_librarian_without_staff_profile_can_issue_book(self):
+        fallback_user = User.objects.create_user(
+            email="librarian-no-profile@example.com",
+            password="strong-pass-123",
+            first_name="No",
+            last_name="Profile",
+            role=Role.LIBRARIAN,
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=fallback_user)
+
+        response = self.client.post(
+            "/api/circulation/loans/issue/",
+            {"copy": self.copy.id, "reader": self.reader.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Staff.objects.filter(user=fallback_user, role=Role.LIBRARIAN).exists())
+
+    def test_staff_can_get_return_options(self):
+        loan = issue_book(copy_id=self.copy.id, reader_id=self.reader.id, staff=self.staff)
+
+        response = self.client.get("/api/circulation/loans/return_options/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["loans"]), 1)
+        self.assertEqual(response.data["loans"][0]["id"], loan.id)
+        self.assertEqual(response.data["loans"][0]["book_title"], self.book.title)
+        self.assertEqual(
+            response.data["loans"][0]["reader_card_number"],
+            self.reader.card_number,
+        )
+
+    def test_staff_can_get_dashboard_stats(self):
+        issue_book(copy_id=self.copy.id, reader_id=self.reader.id, staff=self.staff)
+
+        response = self.client.get("/api/circulation/loans/dashboard_stats/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["users"], 2)
+        self.assertEqual(response.data["books"], 1)
+        self.assertEqual(response.data["readers"], 1)
+        self.assertEqual(response.data["active_loans"], 1)

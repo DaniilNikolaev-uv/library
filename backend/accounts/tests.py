@@ -2,7 +2,8 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from accounts.models import Reader, Role, User
+from accounts.models import Reader, Role, Staff, User
+from accounts.serializers import UserCreateSerializer
 
 
 class AuthMeApiTests(TestCase):
@@ -42,3 +43,23 @@ class AuthMeApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], self.reader.id)
         self.assertEqual(response.data["card_number"], self.reader.card_number)
+
+
+class UserCreateSerializerTests(TestCase):
+    def test_create_librarian_user_also_creates_staff_profile(self):
+        serializer = UserCreateSerializer(
+            data={
+                "email": "librarian-created@example.com",
+                "password": "strong-pass-123",
+                "first_name": "Lib",
+                "last_name": "Created",
+                "role": Role.LIBRARIAN,
+                "is_active": True,
+                "is_staff": True,
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        user = serializer.save()
+
+        self.assertTrue(Staff.objects.filter(user=user, role=Role.LIBRARIAN).exists())
