@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { useAuth } from "@/lib/auth-context";
-import type { User as UserType, Book, Loan, Reader } from "@/lib/admin";
 import { getUsers, getBooks, getLoans, getReaders } from "@/lib/admin";
 
 type Stats = {

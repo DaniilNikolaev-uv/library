@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
+import { getHomeRouteForRole, me } from "@/lib/auth";
 import { myLoans, type Loan } from "@/lib/reader";
 
 type Paginated<T> = { results?: T[] } & Record<string, unknown>;
 
 export default function ReaderLoansPage() {
+  const router = useRouter();
   const [data, setData] = useState<Paginated<Loan> | Loan[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +24,11 @@ export default function ReaderLoansPage() {
   useEffect(() => {
     void (async () => {
       try {
+        const user = await me();
+        if (user.role !== "reader") {
+          router.replace(getHomeRouteForRole(user.role));
+          return;
+        }
         const res = await myLoans();
         setData(res);
       } catch (e) {
@@ -28,7 +36,7 @@ export default function ReaderLoansPage() {
         setError(err.detail || "Не удалось загрузить выдачи");
       }
     })();
-  }, []);
+  }, [router]);
 
   return (
     <div className="space-y-4">

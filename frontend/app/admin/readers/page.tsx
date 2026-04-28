@@ -2,18 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { Reader } from "@/lib/admin";
 import { getReaders, updateReader } from "@/lib/admin";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AdminReadersPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [readers, setReaders] = useState<Reader[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    loadReaders();
-  }, []);
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.replace("/login");
+    }
+  }, [authLoading, router, user]);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      void loadReaders();
+    }
+  }, [user]);
 
   async function loadReaders() {
     setLoading(true);
@@ -46,6 +58,10 @@ export default function AdminReadersPage() {
       r.user.last_name.toLowerCase().includes(search.toLowerCase()) ||
       r.card_number.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (authLoading || !user || user.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="space-y-4">

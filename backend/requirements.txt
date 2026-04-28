@@ -1,3 +1,5 @@
+# Runtime dependencies for Docker/backend execution.
+# Tooling configuration lives in `pyproject.toml`.
 asgiref==3.11.1
 bcrypt==5.0.0
 boto3

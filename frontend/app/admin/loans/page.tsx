@@ -2,17 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { Loan } from "@/lib/admin";
 import { getLoans, returnLoan } from "@/lib/admin";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AdminLoansPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLoans();
-  }, []);
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.replace("/login");
+    }
+  }, [authLoading, router, user]);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      void loadLoans();
+    }
+  }, [user]);
 
   async function loadLoans() {
     setLoading(true);
@@ -40,6 +52,10 @@ export default function AdminLoansPage() {
   }
 
   const activeLoans = loans.filter((l) => l.status === "active" || l.status === "overdue");
+
+  if (authLoading || !user || user.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="space-y-4">

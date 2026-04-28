@@ -6,17 +6,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def env_bool(*names: str, default: bool = False) -> bool:
+    for name in names:
+        value = getenv(name)
+        if value is not None:
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+    return default
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-SECRET_KEY = getenv("SECRET-KEY")
+SECRET_KEY = getenv("SECRET_KEY") or getenv("SECRET-KEY")
 
-DEBUG = getenv("DEBUG", "False") == "True"
+DEBUG = env_bool("DEBUG", "Debug", default=False)
 
-ALLOWED_HOSTS = getenv(
-    "ALLOWED_HOSTS",
-    "127.0.0.1"
-).split(",")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    if host.strip()
+]
 SWAGGER_SETTINGS = {
     "SECURITY_DEFINITIONS": {
         "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"}
@@ -71,15 +80,19 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-CORS_ALLOWED_ORIGINS = getenv(
-    "CORS_ALLOWED_ORIGINS",
-    ""
-).split(",")
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
-CORS_ALLOW_CREDENTIALS = getenv(
-    "CORS_ALLOW_CREDENTIALS",
-    "False"
-) == "True"
+CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", default=False)
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 if DEBUG and not CORS_ALLOWED_ORIGINS:
     CORS_ALLOW_ALL_ORIGINS = True
@@ -116,7 +129,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 
 # Database
 
-if getenv("USE_POSTGRESQL", default=False):
+if env_bool("USE_POSTGRESQL", default=False):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",

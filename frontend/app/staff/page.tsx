@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
-import { me, type User } from "@/lib/auth";
+import { getHomeRouteForRole, me, type User } from "@/lib/auth";
 
 export default function StaffHome() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,13 +16,17 @@ export default function StaffHome() {
     void (async () => {
       try {
         const u = await me();
+        if (u.role !== "librarian" && u.role !== "admin") {
+          router.replace(getHomeRouteForRole(u.role));
+          return;
+        }
         setUser(u);
       } catch (e) {
         const err = e as ApiError;
         setError(err.detail || "Нужно войти");
       }
     })();
-  }, []);
+  }, [router]);
 
   return (
     <div className="space-y-4">

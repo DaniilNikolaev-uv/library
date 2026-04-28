@@ -95,6 +95,7 @@ export type AuditLog = {
     | "reserve"
     | "cancel_reservation"
     | "pay_fine";
+  action_display?: string;
   timestamp: string;
   data_before: Record<string, unknown> | null;
   data_after: Record<string, unknown> | null;

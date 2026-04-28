@@ -1,11 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { ApiError } from "@/lib/api";
-import { login } from "@/lib/auth";
+import { getHomeRouteForRole, login, me } from "@/lib/auth";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +19,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      window.location.href = "/reader";
+      const user = await me();
+      router.replace(getHomeRouteForRole(user.role));
     } catch (e) {
       const err = e as ApiError;
       setError(err.detail || "Не удалось войти");

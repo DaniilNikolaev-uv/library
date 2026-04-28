@@ -2,18 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { User } from "@/lib/admin";
 import { getUsers, deleteUser } from "@/lib/admin";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AdminUsersPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.replace("/login");
+    }
+  }, [authLoading, router, user]);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      void loadUsers();
+    }
+  }, [user]);
 
   async function loadUsers() {
     setLoading(true);
@@ -44,6 +56,10 @@ export default function AdminUsersPage() {
       u.first_name.toLowerCase().includes(search.toLowerCase()) ||
       u.last_name.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (authLoading || !user || user.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="space-y-4">
