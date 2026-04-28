@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
 import { listBooks, listCategories, type Book, type Category } from "@/lib/catalog";
+import { Alert } from "../_components/ui/Alert";
+import { Badge } from "../_components/ui/Badge";
+import { Button } from "../_components/ui/Button";
+import { Card, CardContent, CardHeader } from "../_components/ui/Card";
+import { Checkbox } from "../_components/ui/Checkbox";
+import { Input } from "../_components/ui/Input";
+import { Select } from "../_components/ui/Select";
 
 type Paginated<T> = {
   results?: T[];
@@ -68,64 +75,61 @@ export default function CatalogPage() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Каталог книг</h1>
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-[--color-text]">
+          Каталог книг
+        </h1>
+        <div className="text-sm text-[--color-muted]">
+          Позиции: <Badge variant="muted">{books.length}</Badge>
         </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void load();
-          }}
-          className="flex flex-wrap gap-2"
-        >
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Название / ISBN / автор…"
-            className="w-72 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-black"
-          />
-          <input
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            placeholder="Год"
-            inputMode="numeric"
-            className="w-28 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-black"
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-52 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-black"
-          >
-            <option value="">Все категории</option>
-            {categories.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          <label className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
-            <input
-              checked={availableOnly}
-              onChange={(e) => setAvailableOnly(e.target.checked)}
-              type="checkbox"
-            />
-            Только доступные
-          </label>
-          <button
-            disabled={loading}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
-          >
-            {loading ? "..." : "Найти"}
-          </button>
-        </form>
       </div>
 
+      <Card>
+        <CardHeader>
+          <div className="text-sm font-medium text-[--color-text]">Фильтры</div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void load();
+            }}
+            className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_120px_220px_auto_auto]"
+          >
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Название / ISBN / автор…"
+            />
+            <Input
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="Год"
+              inputMode="numeric"
+            />
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">Все категории</option>
+              {categories.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </Select>
+            <label className="flex h-9 items-center gap-2 rounded-md border border-[--color-border] bg-[--color-surface] px-3 text-sm text-[--color-muted]">
+              <Checkbox
+                checked={availableOnly}
+                onChange={(e) => setAvailableOnly(e.target.checked)}
+              />
+              Только доступные
+            </label>
+            <Button disabled={loading}>{loading ? "..." : "Найти"}</Button>
+          </form>
+        </CardContent>
+      </Card>
+
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
-          {error}
-        </div>
+        <Alert variant="danger">{error}</Alert>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -133,22 +137,24 @@ export default function CatalogPage() {
           <Link
             key={b.id}
             href={`/book/${b.id}`}
-            className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+            className="rounded-xl border border-[--color-border] bg-[--color-surface] p-4 transition-colors hover:bg-[--color-surface-2]"
           >
             <div className="flex gap-3">
               <img
                 src={b.cover_url || b.cover_image || "https://placehold.co/120x180?text=No+Cover"}
                 alt={`Обложка: ${b.title}`}
-                className="h-[120px] w-[80px] rounded-md object-cover ring-1 ring-zinc-200 dark:ring-zinc-800"
+                className="h-[120px] w-[80px] rounded-md object-cover ring-1 ring-[--color-border]"
                 loading="lazy"
               />
               <div className="min-w-0">
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                <div className="text-sm text-[--color-muted]">
                   {b.year} {b.isbn ? `• ISBN ${b.isbn}` : null}
                 </div>
-                <div className="mt-1 font-semibold leading-snug">{b.title}</div>
+                <div className="mt-1 font-semibold leading-snug text-[--color-text]">
+                  {b.title}
+                </div>
                 {b.subtitle ? (
-                  <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  <div className="mt-1 text-sm text-[--color-muted]">
                     {b.subtitle}
                   </div>
                 ) : null}
@@ -159,7 +165,7 @@ export default function CatalogPage() {
       </div>
 
       {!loading && books.length === 0 ? (
-        <div className="text-sm text-zinc-600 dark:text-zinc-400">Ничего не найдено.</div>
+        <div className="text-sm text-[--color-muted]">Ничего не найдено.</div>
       ) : null}
     </div>
   );

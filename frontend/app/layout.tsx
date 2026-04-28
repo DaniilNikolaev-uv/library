@@ -30,7 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <div className="min-h-dvh bg-zinc-50 text-zinc-950 dark:bg-black dark:text-zinc-50">
+          <div className="min-h-dvh bg-[--color-bg] text-[--color-text]">
             <Header />
             <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
           </div>

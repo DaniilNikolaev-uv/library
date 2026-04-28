@@ -11,10 +11,11 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   return (
     <Link
       href={href}
-      className={[
-        "rounded-md px-2 py-1 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900",
-        active ? "bg-zinc-100 dark:bg-zinc-900" : "",
-      ].join(" ")}
+      className={`rounded-md px-2 py-1 text-sm transition-colors ${
+        active
+          ? "bg-[--color-surface-2] text-[--color-text]"
+          : "text-[--color-muted] hover:bg-[--color-surface-2] hover:text-[--color-text]"
+      }`}
     >
       {children}
     </Link>
@@ -25,10 +26,10 @@ export function Header() {
   const { user, loading, logout } = useAuth();
 
   return (
-    <header className="border-b border-zinc-200 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-black/50">
+    <header className="sticky top-0 z-20 border-b border-[--color-border] bg-[--color-bg]/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/" className="font-semibold tracking-tight">
-          Archeion
+        <Link href="/" className="font-semibold tracking-tight text-[--color-text]">
+          Archerion
         </Link>
 
         <nav className="flex items-center gap-2">
@@ -41,15 +42,15 @@ export function Header() {
             <NavLink href="/staff">Сотрудник</NavLink>
           )}
 
-          <div className="ml-2 h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
+          <div className="ml-2 h-6 w-px bg-[--color-border]" />
 
           {loading ? (
-            <span className="px-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="px-2 text-sm text-[--color-muted]">
               ...
             </span>
           ) : user ? (
             <div className="flex items-center gap-2">
-              <span className="hidden text-sm text-zinc-600 dark:text-zinc-400 sm:block">
+              <span className="hidden text-sm text-[--color-muted] sm:block">
                 {user.email}
               </span>
               <button
@@ -57,7 +58,7 @@ export function Header() {
                   logout();
                   window.location.href = "/";
                 }}
-                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+                className="rounded-md border border-[--color-border] bg-[--color-surface] px-3 py-1.5 text-sm font-medium text-[--color-text] transition-colors hover:bg-[--color-surface-2]"
               >
                 Выйти
               </button>
@@ -65,7 +66,7 @@ export function Header() {
           ) : (
             <Link
               href="/login"
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+              className="rounded-md bg-[--color-accent] px-3 py-1.5 text-sm font-medium text-[--color-accent-foreground] transition-colors hover:bg-blue-500"
             >
               Вход
             </Link>
