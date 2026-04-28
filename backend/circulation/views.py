@@ -58,6 +58,27 @@ class LoanViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(LoanSerializer(loan).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["get"])
+    def my(self, request):
+        """
+        Выдачи текущего пользователя (читателя).
+
+        Нужен для фронтенда: GET /api/circulation/loans/my/
+        """
+        reader = getattr(request.user, "reader", None)
+        if reader is None:
+            return Response([], status=status.HTTP_200_OK)
+        qs = (
+            Loan.objects.filter(reader=reader)
+            .select_related("reader__user", "copy__book")
+            .order_by("-id")
+        )
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = LoanSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(LoanSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=["post"])
     def issue(self, request):
         return self.create(request)

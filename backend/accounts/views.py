@@ -3,7 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from accounts.models import Reader, Staff
-from accounts.serializers import UserSerializer, UserCreateSerializer, ReaderSerializer
+from accounts.serializers import (
+    UserSerializer,
+    UserCreateSerializer,
+    ReaderSerializer,
+    ReaderRegisterSerializer,
+)
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 User = get_user_model()
@@ -39,3 +44,14 @@ class ReaderMeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user.reader
+
+
+class RegisterReaderView(generics.CreateAPIView):
+    """
+    Публичная регистрация читателя.
+
+    POST /api/auth/register-reader/
+    """
+
+    serializer_class = ReaderRegisterSerializer
+    permission_classes = [permissions.AllowAny]
