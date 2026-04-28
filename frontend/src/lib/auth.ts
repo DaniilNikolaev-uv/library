@@ -29,3 +29,20 @@ export function logout() {
   authStorage.clear();
 }
 
+export type RegisterReaderPayload = {
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  address?: string;
+};
+
+export async function registerReader(payload: RegisterReaderPayload) {
+  return await apiFetch("/api/auth/register-reader/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+

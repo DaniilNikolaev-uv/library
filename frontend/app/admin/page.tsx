@@ -118,6 +118,11 @@ export default function AdminPage() {
                 Выдача и возврат книг
               </p>
             </AdminCard>
+            <AdminCard title="Audit Timeline" href="/admin/audit">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Лента действий по книгам, выдачам, броням и штрафам
+              </p>
+            </AdminCard>
           </div>
         </>
       )}

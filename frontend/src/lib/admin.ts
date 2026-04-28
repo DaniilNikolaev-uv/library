@@ -79,6 +79,28 @@ export type Reservation = {
   status: "active" | "fulfilled" | "cancelled" | "expired";
 };
 
+export type AuditLog = {
+  id: number;
+  user: number | null;
+  user_email: string;
+  entity_type: string;
+  entity_id: string;
+  action:
+    | "create"
+    | "update"
+    | "delete"
+    | "issue"
+    | "return"
+    | "renew"
+    | "reserve"
+    | "cancel_reservation"
+    | "pay_fine";
+  timestamp: string;
+  data_before: Record<string, unknown> | null;
+  data_after: Record<string, unknown> | null;
+  meta: Record<string, unknown> | null;
+};
+
 // Users API
 export async function getUsers() {
   return await apiFetch<User[]>("/api/admin/users/", { method: "GET" });
@@ -278,4 +300,19 @@ export async function cancelReservation(id: number) {
   return await apiFetch<Reservation>(`/api/admin/reservations/${id}/cancel/`, {
     method: "POST",
   });
+}
+
+export async function getAuditLogs(params?: {
+  action?: string;
+  entity_type?: string;
+  user?: string | number;
+  search?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.action) qs.set("action", params.action);
+  if (params?.entity_type) qs.set("entity_type", params.entity_type);
+  if (params?.user) qs.set("user", String(params.user));
+  if (params?.search) qs.set("search", params.search);
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return await apiFetch<AuditLog[]>(`/api/audit/${suffix}`, { method: "GET" });
 }

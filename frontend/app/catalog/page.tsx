@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
-import { listBooks, type Book } from "@/lib/catalog";
+import { listBooks, listCategories, type Book, type Category } from "@/lib/catalog";
 
 type Paginated<T> = {
   results?: T[];
@@ -12,7 +12,11 @@ type Paginated<T> = {
 
 export default function CatalogPage() {
   const [search, setSearch] = useState("");
+  const [year, setYear] = useState("");
+  const [category, setCategory] = useState("");
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [data, setData] = useState<Paginated<Book> | Book[] | null>(null);
+  const [categoriesData, setCategoriesData] = useState<Paginated<Category> | Category[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,11 +26,22 @@ export default function CatalogPage() {
     return (data.results ?? []) as Book[];
   }, [data]);
 
+  const categories: Category[] = useMemo(() => {
+    if (!categoriesData) return [];
+    if (Array.isArray(categoriesData)) return categoriesData;
+    return (categoriesData.results ?? []) as Category[];
+  }, [categoriesData]);
+
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listBooks({ search: search.trim() || undefined });
+      const res = await listBooks({
+        search: search.trim() || undefined,
+        year: year.trim() || undefined,
+        category: category || undefined,
+        available_only: availableOnly,
+      });
       setData(res);
     } catch (e) {
       const err = e as ApiError;
@@ -41,6 +56,17 @@ export default function CatalogPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await listCategories();
+        setCategoriesData(res);
+      } catch {
+        setCategoriesData([]);
+      }
+    })();
+  }, []);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -52,7 +78,7 @@ export default function CatalogPage() {
             e.preventDefault();
             void load();
           }}
-          className="flex gap-2"
+          className="flex flex-wrap gap-2"
         >
           <input
             value={search}
@@ -60,6 +86,33 @@ export default function CatalogPage() {
             placeholder="Название / ISBN / автор…"
             className="w-72 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-black"
           />
+          <input
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            placeholder="Год"
+            inputMode="numeric"
+            className="w-28 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-black"
+          />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-52 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-black"
+          >
+            <option value="">Все категории</option>
+            {categories.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
+            <input
+              checked={availableOnly}
+              onChange={(e) => setAvailableOnly(e.target.checked)}
+              type="checkbox"
+            />
+            Только доступные
+          </label>
           <button
             disabled={loading}
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"

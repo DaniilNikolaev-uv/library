@@ -156,3 +156,14 @@ class CirculationApiTests(TestCase):
         self.assertEqual(return_response.data["status"], Loan.Status.RETURNED)
         self.copy.refresh_from_db()
         self.assertEqual(self.copy.status, BookCopy.Status.AVAILABLE)
+
+    def test_reader_can_list_own_loans_via_my_endpoint(self):
+        issue_book(copy_id=self.copy.id, reader_id=self.reader.id, staff=self.staff)
+
+        self.client.force_authenticate(user=self.reader_user)
+        response = self.client.get("/api/circulation/loans/my/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data["results"] if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["reader"], self.reader.id)

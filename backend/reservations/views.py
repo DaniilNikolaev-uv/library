@@ -50,6 +50,27 @@ class ReservationViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["get"])
+    def my(self, request):
+        """
+        Брони текущего пользователя (читателя).
+
+        Нужен для фронтенда: GET /api/reservations/my/
+        """
+        reader = getattr(request.user, "reader", None)
+        if reader is None:
+            return Response([], status=status.HTTP_200_OK)
+        qs = (
+            Reservation.objects.filter(reader=reader)
+            .select_related("reader__user", "copy__book")
+            .order_by("-id")
+        )
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = ReservationSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(ReservationSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         try:
