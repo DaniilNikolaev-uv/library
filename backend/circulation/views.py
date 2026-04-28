@@ -2,8 +2,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.contrib.auth import get_user_model
+from django.db.models import Q
 
-from accounts.models import Role
+from accounts.models import Reader, Role, Staff
+from catalog.models import Book
+from inventory.models import BookCopy
 from circulation.models import Loan
 from circulation.permissions import IsStaff, IsStaffOrOwner
 from circulation.serializers import (
@@ -13,6 +17,8 @@ from circulation.serializers import (
     LoanSerializer,
 )
 from circulation.services import LOAN_DAYS, LoanError, issue_book, renew_loan, return_book
+
+User = get_user_model()
 
 
 class LoanViewSet(viewsets.ModelViewSet):
@@ -41,7 +47,7 @@ class LoanViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = LoanIssueSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        staff = getattr(request.user, "staff_profile", None)
+        staff = self._get_or_create_staff_profile(request.user)
         if not staff:
             return Response(
                 {"detail": "Только сотрудник может выполнять выдачу."},
@@ -83,11 +89,128 @@ class LoanViewSet(viewsets.ModelViewSet):
     def issue(self, request):
         return self.create(request)
 
+    @action(detail=False, methods=["get"])
+    def issue_options(self, request):
+        readers = list(
+            Reader.objects.select_related("user")
+            .order_by("user__last_name", "user__first_name", "id")
+            .values(
+                "id",
+                "card_number",
+                "email",
+                "is_blocked",
+                "user__first_name",
+                "user__last_name",
+            )
+        )
+        copies = list(
+            BookCopy.objects.select_related("book", "location")
+            .filter(status=BookCopy.Status.AVAILABLE)
+            .order_by("inventory_number")
+            .values(
+                "id",
+                "inventory_number",
+                "barcode",
+                "book__title",
+                "book__isbn",
+                "location__name",
+                "location__code",
+            )
+        )
+        return Response(
+            {
+                "readers": [
+                    {
+                        "id": reader["id"],
+                        "card_number": reader["card_number"],
+                        "email": reader["email"],
+                        "is_blocked": reader["is_blocked"],
+                        "first_name": reader["user__first_name"],
+                        "last_name": reader["user__last_name"],
+                    }
+                    for reader in readers
+                ],
+                "copies": [
+                    {
+                        "id": copy["id"],
+                        "inventory_number": copy["inventory_number"],
+                        "barcode": copy["barcode"],
+                        "book_title": copy["book__title"],
+                        "isbn": copy["book__isbn"],
+                        "location_name": copy["location__name"],
+                        "location_code": copy["location__code"],
+                    }
+                    for copy in copies
+                ],
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["get"])
+    def return_options(self, request):
+        loans = list(
+            Loan.objects.select_related("reader__user", "copy__book")
+            .filter(status__in=[Loan.Status.ACTIVE, Loan.Status.OVERDUE])
+            .order_by("-id")
+            .values(
+                "id",
+                "status",
+                "issue_date",
+                "due_date",
+                "reader__id",
+                "reader__card_number",
+                "reader__email",
+                "reader__user__first_name",
+                "reader__user__last_name",
+                "copy__id",
+                "copy__inventory_number",
+                "copy__barcode",
+                "copy__book__title",
+                "copy__book__isbn",
+            )
+        )
+        return Response(
+            {
+                "loans": [
+                    {
+                        "id": loan["id"],
+                        "status": loan["status"],
+                        "issue_date": loan["issue_date"],
+                        "due_date": loan["due_date"],
+                        "reader_id": loan["reader__id"],
+                        "reader_card_number": loan["reader__card_number"],
+                        "reader_email": loan["reader__email"],
+                        "reader_first_name": loan["reader__user__first_name"],
+                        "reader_last_name": loan["reader__user__last_name"],
+                        "copy_id": loan["copy__id"],
+                        "inventory_number": loan["copy__inventory_number"],
+                        "barcode": loan["copy__barcode"],
+                        "book_title": loan["copy__book__title"],
+                        "isbn": loan["copy__book__isbn"],
+                    }
+                    for loan in loans
+                ]
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["get"])
+    def dashboard_stats(self, request):
+        stats = {
+            "users": User.objects.count(),
+            "books": Book.objects.count(),
+            "active_loans": Loan.objects.filter(
+                Q(status=Loan.Status.ACTIVE) | Q(status=Loan.Status.OVERDUE)
+            ).count(),
+            "readers": Reader.objects.count(),
+        }
+        return Response(stats, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["post"])
     def return_book(self, request, pk=None):
         serializer = LoanReturnSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        staff = getattr(request.user, "staff_profile", None)
+        staff = self._get_or_create_staff_profile(request.user)
         if not staff:
             return Response(
                 {"detail": "Только сотрудник может принимать возврат."},
@@ -107,7 +230,7 @@ class LoanViewSet(viewsets.ModelViewSet):
     def prolong(self, request, pk=None):
         serializer = LoanProlongSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        staff = getattr(request.user, "staff_profile", None)
+        staff = self._get_or_create_staff_profile(request.user)
         if not staff:
             return Response(
                 {"detail": "Только сотрудник может продлевать выдачу."},
@@ -122,3 +245,14 @@ class LoanViewSet(viewsets.ModelViewSet):
         except LoanError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(LoanSerializer(loan).data)
+
+    def _get_or_create_staff_profile(self, user):
+        if not user or not user.is_authenticated:
+            return None
+        if user.role not in (Role.ADMIN, Role.LIBRARIAN):
+            return None
+        staff = getattr(user, "staff_profile", None)
+        if staff:
+            return staff
+        staff, _ = Staff.objects.get_or_create(user=user, defaults={"role": user.role})
+        return staff

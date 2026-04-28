@@ -6,10 +6,13 @@ import { useEffect, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
 import { getHomeRouteForRole, me, type User } from "@/lib/auth";
+import { getDashboardStats, type StaffDashboardStats } from "@/lib/staff";
 
 export default function StaffHome() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<StaffDashboardStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,9 +24,13 @@ export default function StaffHome() {
           return;
         }
         setUser(u);
+        const dashboardStats = await getDashboardStats();
+        setStats(dashboardStats);
       } catch (e) {
         const err = e as ApiError;
         setError(err.detail || "Нужно войти");
+      } finally {
+        setStatsLoading(false);
       }
     })();
   }, [router]);
@@ -57,7 +64,28 @@ export default function StaffHome() {
           </Link>
         </div>
       </div>
+
+      {statsLoading ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          Загружаем статистику...
+        </div>
+      ) : stats ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Пользователи" value={stats.users} />
+          <StatCard title="Книги" value={stats.books} />
+          <StatCard title="Активные выдачи" value={stats.active_loans} />
+          <StatCard title="Читатели" value={stats.readers} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="text-sm text-zinc-600 dark:text-zinc-400">{title}</div>
+      <div className="mt-1 text-3xl font-semibold tracking-tight">{value}</div>
+    </div>
+  );
+}
