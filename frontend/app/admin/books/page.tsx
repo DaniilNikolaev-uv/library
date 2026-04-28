@@ -2,18 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { Book } from "@/lib/admin";
 import { getBooks } from "@/lib/admin";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AdminBooksPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    loadBooks();
-  }, []);
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.replace("/login");
+    }
+  }, [authLoading, router, user]);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      void loadBooks();
+    }
+  }, [user]);
 
   async function loadBooks() {
     setLoading(true);
@@ -35,6 +47,10 @@ export default function AdminBooksPage() {
       ) ||
       (b.isbn && b.isbn.includes(search))
   );
+
+  if (authLoading || !user || user.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="space-y-4">

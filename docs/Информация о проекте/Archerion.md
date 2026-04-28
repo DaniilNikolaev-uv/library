@@ -28,28 +28,36 @@ status: in-progress
 - Языки: Python, TypeScript
 - Фреймворки: Django REST Framework + Next.js
 - БД: PostgreSQL
-- Аутентификация: JWT/Token
-- Инструменты: Git, Docker (планируется), Swagger/OpenAPI (планируется)
+- Аутентификация: JWT (`djangorestframework-simplejwt`)
+- Инструменты: Git, Docker, Docker Compose, Swagger/OpenAPI
 
 ## Архитектура
 
-- Backend (Django/DRF): `accounts`, `catalog`, `inventory`, `circulation`, `reservations`, `fines`, `reports`, `audit`, `common`.
-- Frontend (Next.js): кабинет читателя, интерфейс библиотекаря, интерфейс администратора.
+- Backend (Django/DRF): `accounts`, `catalog`, `inventory`, `circulation`, `reservations`, `fines`, `reports`, `audit`, `swagger`, `storage`.
+- Frontend (Next.js App Router): публичный каталог, кабинет читателя, интерфейс библиотекаря, интерфейс администратора.
 - Сервисный слой для бизнес-правил (выдача, возврат, продления, штрафы).
 - REST API между frontend и backend.
+- Отдельный сервис `healthcheck` показывает доступность backend, frontend, PostgreSQL, MinIO и pgAdmin.
 
-## Дорожная карта
+## Текущее состояние
 
-- [ ] Настроить Django-проект и базовую структуру приложений.
-- [ ] Реализовать модели каталога (`Author`, `Publisher`, `Category`, `Book`).
-- [ ] Реализовать модели учета экземпляров и читателей (`BookCopy`, `Reader`, `Staff`).
-- [ ] Реализовать сценарии выдачи/возврата/продления (`Loan`) с проверками.
-- [ ] Добавить бронирование и управление сроками брони (`Reservation`).
-- [ ] Реализовать модуль штрафов и политику расчета (`Fine`, `FinePolicy`).
-- [ ] Реализовать ролевой доступ и аудит действий.
-- [ ] Реализовать базовый frontend для читателя и библиотекаря.
-- [ ] Добавить тесты ключевой бизнес-логики и API.
-- [ ] Подготовить деплой и документацию API.
+- [x] Настроен Django-проект и базовая структура приложений.
+- [x] Реализованы модели каталога (`Author`, `Publisher`, `Category`, `Book`).
+- [x] Реализованы модели учета экземпляров и читателей (`BookCopy`, `Reader`, `Staff`).
+- [x] Реализованы сценарии выдачи/возврата/продления (`Loan`) с проверками.
+- [x] Добавлены бронирование и управление сроками брони (`Reservation`).
+- [x] Реализован модуль штрафов и политика расчета (`Fine`, `FinePolicy`).
+- [x] Реализованы ролевой доступ, отчеты и аудит действий.
+- [x] Есть frontend для читателя, сотрудника и администратора.
+- [x] Есть тесты ключевой бизнес-логики и API на backend.
+- [x] Есть Docker Compose и Swagger/OpenAPI.
+
+## Текущие направления развития
+
+- [ ] Довести `Audit Timeline` до завершенного demo-уровня в админке.
+- [ ] Усилить демонстрацию RBAC на frontend.
+- [ ] Синхронизировать документацию и env-шаблоны с кодом.
+- [ ] Усилить quality tooling и эксплуатационные инструкции.
 
 ## Лог
 

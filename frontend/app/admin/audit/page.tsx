@@ -66,6 +66,35 @@ export default function AdminAuditPage() {
     return Array.from(new Set(logs.map((item) => item.entity_type))).sort();
   }, [logs]);
 
+  const stats = useMemo(() => {
+    return {
+      total: logs.length,
+      withChanges: logs.filter((item) => item.data_before || item.data_after).length,
+      system: logs.filter((item) => !item.user_email).length,
+    };
+  }, [logs]);
+
+  function resetFilters() {
+    setSearch("");
+    setAction("");
+    setEntityType("");
+  }
+
+  async function clearFilters() {
+    resetFilters();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getAuditLogs();
+      setLogs(data);
+    } catch (e) {
+      const err = e as ApiError;
+      setError(err.detail || "Не удалось загрузить аудит");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   if (loading || !user || user.role !== "admin") {
     return null;
   }
@@ -131,7 +160,20 @@ export default function AdminAuditPage() {
         >
           {isLoading ? "..." : "Применить"}
         </button>
+        <button
+          type="button"
+          onClick={() => void clearFilters()}
+          className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+        >
+          Сбросить
+        </button>
       </form>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Всего событий" value={stats.total} />
+        <SummaryCard label="Снимки изменений" value={stats.withChanges} />
+        <SummaryCard label="Системные события" value={stats.system} />
+      </div>
 
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
@@ -156,11 +198,12 @@ export default function AdminAuditPage() {
             </div>
 
             <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Пользователь: {log.user_email || "Системное событие"}
+              {log.action_display || ACTION_LABELS[log.action] || log.action} • Пользователь:{" "}
+              {log.user_email || "Системное событие"}
             </div>
 
-            {(log.data_before || log.data_after) && (
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {(log.data_before || log.data_after || log.meta) && (
+              <div className="mt-3 grid gap-3 lg:grid-cols-3">
                 <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
                   <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
                     До
@@ -177,6 +220,14 @@ export default function AdminAuditPage() {
                     {JSON.stringify(log.data_after ?? {}, null, 2)}
                   </pre>
                 </div>
+                <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
+                  <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    Meta
+                  </div>
+                  <pre className="overflow-x-auto whitespace-pre-wrap text-xs text-zinc-700 dark:text-zinc-300">
+                    {JSON.stringify(log.meta ?? {}, null, 2)}
+                  </pre>
+                </div>
               </div>
             )}
           </article>
@@ -186,6 +237,15 @@ export default function AdminAuditPage() {
           <div className="py-12 text-center text-zinc-500">События не найдены</div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="text-sm text-zinc-600 dark:text-zinc-400">{label}</div>
+      <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
     </div>
   );
 }

@@ -8,6 +8,12 @@ export type User = {
   role: "admin" | "librarian" | "reader";
 };
 
+export function getHomeRouteForRole(role: User["role"] | undefined | null) {
+  if (role === "admin") return "/admin";
+  if (role === "librarian") return "/staff";
+  return "/reader";
+}
+
 export async function login(email: string, password: string) {
   const res = await apiFetch<{ access: string; refresh: string }>(
     "/api/auth/login/",

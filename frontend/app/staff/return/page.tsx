@@ -1,17 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
+import { getHomeRouteForRole, me } from "@/lib/auth";
 import { returnLoan } from "@/lib/staff";
 
 export default function StaffReturnPage() {
+  const router = useRouter();
   const [loanId, setLoanId] = useState("");
   const [markLost, setMarkLost] = useState(false);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const user = await me();
+        if (user.role !== "librarian" && user.role !== "admin") {
+          router.replace(getHomeRouteForRole(user.role));
+        }
+      } catch {
+        router.replace("/login");
+      }
+    })();
+  }, [router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
