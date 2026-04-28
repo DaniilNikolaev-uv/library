@@ -2,21 +2,30 @@ from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from accounts.models import Reader, Staff
+from accounts.models import Reader, Role, Staff
 from accounts.serializers import (
     UserSerializer,
     UserCreateSerializer,
     ReaderSerializer,
     ReaderRegisterSerializer,
 )
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import BasePermission, IsAuthenticated
 
 User = get_user_model()
 
 
+class IsRoleAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "role", None) == Role.ADMIN
+        )
+
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by("-id")
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsRoleAdmin]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -27,7 +36,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class ReaderViewSet(viewsets.ModelViewSet):
     queryset = Reader.objects.all().order_by("-id")
     serializer_class = ReaderSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsRoleAdmin]
 
 
 class MeView(generics.RetrieveUpdateAPIView):

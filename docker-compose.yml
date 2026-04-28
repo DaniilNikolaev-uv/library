@@ -128,8 +128,11 @@ services:
       HEALTHCHECK_POSTGRES_PORT: "5432"
       HEALTHCHECK_SESSION_SECRET: ${HEALTHCHECK_SESSION_SECRET}
       HEALTHCHECK_SECURE_COOKIES: "false"
+      HEALTHCHECK_LOG_TAIL_LINES: "80"
     ports:
       - "8085:8085"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - archerion_backend
       - archerion_frontend

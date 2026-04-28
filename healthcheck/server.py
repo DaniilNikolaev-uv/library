@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import socket
+import subprocess
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -38,13 +39,16 @@ MINIO_CONSOLE_URL = os.getenv("HEALTHCHECK_MINIO_CONSOLE_URL", "http://localhost
 PGADMIN_URL = os.getenv("HEALTHCHECK_PGADMIN_URL", "http://localhost:5050/").rstrip("/") + "/"
 POSTGRES_HOST = os.getenv("HEALTHCHECK_POSTGRES_HOST", "localhost")
 POSTGRES_PORT = int(os.getenv("HEALTHCHECK_POSTGRES_PORT", "5432"))
+LOG_TAIL_LINES = int(os.getenv("HEALTHCHECK_LOG_TAIL_LINES", "80"))
 
 
 @dataclass
 class ServiceCheck:
+    key: str
     name: str
     type: str
     target: str
+    container: str | None
     status: str
     details: str
     checked_at: str
@@ -52,14 +56,52 @@ class ServiceCheck:
 
 
 HTTP_SERVICES = (
-    ("Frontend", "http", FRONTEND_URL),
-    ("Backend", "http", BACKEND_HEALTH_URL),
-    ("MinIO API", "http", MINIO_API_URL),
-    ("MinIO Console", "http", MINIO_CONSOLE_URL),
-    ("pgAdmin", "http", PGADMIN_URL),
+    {
+        "key": "frontend",
+        "name": "Frontend",
+        "type": "http",
+        "target": FRONTEND_URL,
+        "container": "archerion_frontend",
+    },
+    {
+        "key": "backend",
+        "name": "Backend",
+        "type": "http",
+        "target": BACKEND_HEALTH_URL,
+        "container": "archerion_backend",
+    },
+    {
+        "key": "minio_api",
+        "name": "MinIO API",
+        "type": "http",
+        "target": MINIO_API_URL,
+        "container": "archerion_minio",
+    },
+    {
+        "key": "minio_console",
+        "name": "MinIO Console",
+        "type": "http",
+        "target": MINIO_CONSOLE_URL,
+        "container": "archerion_minio",
+    },
+    {
+        "key": "pgadmin",
+        "name": "pgAdmin",
+        "type": "http",
+        "target": PGADMIN_URL,
+        "container": "pgadmin_archerion",
+    },
 )
 
-TCP_SERVICES = (("PostgreSQL", "tcp", (POSTGRES_HOST, POSTGRES_PORT)),)
+TCP_SERVICES = (
+    {
+        "key": "postgres",
+        "name": "PostgreSQL",
+        "type": "tcp",
+        "target": (POSTGRES_HOST, POSTGRES_PORT),
+        "container": "archerion_db",
+    },
+)
 
 
 def utc_now() -> str:
@@ -159,7 +201,7 @@ def auth_with_backend(email: str, password: str) -> tuple[bool, str]:
         return False, "Backend auth unavailable"
 
 
-def check_http(name: str, target: str) -> ServiceCheck:
+def check_http(key: str, name: str, target: str, container: str | None) -> ServiceCheck:
     started = time.perf_counter()
     checked_at = utc_now()
     request = Request(target, headers={"User-Agent": "archerion-healthcheck/1.0"})
@@ -172,41 +214,110 @@ def check_http(name: str, target: str) -> ServiceCheck:
                 status = "up"
             else:
                 status = "degraded"
-            return ServiceCheck(name, "http", target, status, f"HTTP {status_code}", checked_at, elapsed)
+            return ServiceCheck(
+                key, name, "http", target, container, status, f"HTTP {status_code}", checked_at, elapsed
+            )
     except HTTPError as error:
         elapsed = int((time.perf_counter() - started) * 1000)
         status = "degraded" if error.code < 500 else "down"
-        return ServiceCheck(name, "http", target, status, f"HTTP {error.code}", checked_at, elapsed)
+        return ServiceCheck(
+            key, name, "http", target, container, status, f"HTTP {error.code}", checked_at, elapsed
+        )
     except URLError as error:
-        return ServiceCheck(name, "http", target, "down", f"Network error: {error.reason}", checked_at, None)
+        return ServiceCheck(
+            key, name, "http", target, container, "down", f"Network error: {error.reason}", checked_at, None
+        )
     except ConnectionResetError:
-        return ServiceCheck(name, "http", target, "down", "Connection reset by peer", checked_at, None)
+        return ServiceCheck(
+            key, name, "http", target, container, "down", "Connection reset by peer", checked_at, None
+        )
     except OSError as error:
-        return ServiceCheck(name, "http", target, "down", f"Socket error: {error.strerror or error}", checked_at, None)
+        return ServiceCheck(
+            key, name, "http", target, container, "down", f"Socket error: {error.strerror or error}", checked_at, None
+        )
     except TimeoutError:
-        return ServiceCheck(name, "http", target, "down", "Timeout", checked_at, None)
+        return ServiceCheck(key, name, "http", target, container, "down", "Timeout", checked_at, None)
 
 
-def check_tcp(name: str, host: str, port: int) -> ServiceCheck:
+def check_tcp(key: str, name: str, host: str, port: int, container: str | None) -> ServiceCheck:
     started = time.perf_counter()
     checked_at = utc_now()
     try:
         with socket.create_connection((host, port), timeout=TIMEOUT_SECONDS):
             elapsed = int((time.perf_counter() - started) * 1000)
-            return ServiceCheck(name, "tcp", f"{host}:{port}", "up", "TCP connection established", checked_at, elapsed)
+            return ServiceCheck(
+                key,
+                name,
+                "tcp",
+                f"{host}:{port}",
+                container,
+                "up",
+                "TCP connection established",
+                checked_at,
+                elapsed,
+            )
     except TimeoutError:
-        return ServiceCheck(name, "tcp", f"{host}:{port}", "down", "Connection timeout", checked_at, None)
+        return ServiceCheck(
+            key, name, "tcp", f"{host}:{port}", container, "down", "Connection timeout", checked_at, None
+        )
     except OSError as error:
-        return ServiceCheck(name, "tcp", f"{host}:{port}", "down", f"Socket error: {error.strerror or error}", checked_at, None)
+        return ServiceCheck(
+            key, name, "tcp", f"{host}:{port}", container, "down", f"Socket error: {error.strerror or error}", checked_at, None
+        )
+
+
+def get_service_logs(service_key: str) -> dict[str, str | int | bool]:
+    service = next(
+        (
+            item
+            for item in (*HTTP_SERVICES, *TCP_SERVICES)
+            if item["key"] == service_key
+        ),
+        None,
+    )
+    if not service:
+        raise KeyError("Unknown service")
+
+    container = service.get("container")
+    if not container:
+        return {"service": service_key, "container": "", "logs": "Logs are not configured for this service.", "available": False}
+
+    try:
+        completed = subprocess.run(
+            ["docker", "logs", "--tail", str(LOG_TAIL_LINES), container],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except FileNotFoundError:
+        return {"service": service_key, "container": container, "logs": "Docker CLI is not available in healthcheck container.", "available": False}
+    except subprocess.TimeoutExpired:
+        return {"service": service_key, "container": container, "logs": "Timed out while reading container logs.", "available": False}
+
+    output = completed.stdout.strip()
+    error_output = completed.stderr.strip()
+    logs = output or error_output or "Container has no recent logs."
+    return {
+        "service": service_key,
+        "container": container,
+        "logs": logs,
+        "available": completed.returncode == 0,
+        "exit_code": completed.returncode,
+    }
 
 
 def run_checks() -> list[ServiceCheck]:
     results: list[ServiceCheck] = []
-    for name, _, target in HTTP_SERVICES:
-        results.append(check_http(name, target))
-    for name, _, address in TCP_SERVICES:
-        host, port = address
-        results.append(check_tcp(name, host, port))
+    for service in HTTP_SERVICES:
+        results.append(
+            check_http(service["key"], service["name"], service["target"], service["container"])
+        )
+    for service in TCP_SERVICES:
+        host, port = service["target"]
+        results.append(
+            check_tcp(service["key"], service["name"], host, port, service["container"])
+        )
     return results
 
 
@@ -217,6 +328,9 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/api/health":
             self.respond_health()
+            return
+        if self.path.startswith("/api/logs"):
+            self.respond_logs()
             return
         if self.path == "/api/session":
             self.respond_session()
@@ -317,6 +431,32 @@ class HealthcheckHandler(SimpleHTTPRequestHandler):
             "user": user,
             "services": [asdict(service) for service in services],
         }
+        self.respond_json(HTTPStatus.OK, payload)
+
+    def respond_logs(self) -> None:
+        user = self.require_auth()
+        if not user:
+            return
+
+        service_key = ""
+        try:
+            from urllib.parse import parse_qs, urlparse
+
+            parsed = urlparse(self.path)
+            service_key = parse_qs(parsed.query).get("service", [""])[0]
+        except Exception:
+            service_key = ""
+
+        if not service_key:
+            self.respond_json(HTTPStatus.BAD_REQUEST, {"detail": "Query parameter 'service' is required"})
+            return
+
+        try:
+            payload = get_service_logs(service_key)
+        except KeyError:
+            self.respond_json(HTTPStatus.NOT_FOUND, {"detail": "Unknown service"})
+            return
+
         self.respond_json(HTTPStatus.OK, payload)
 
 

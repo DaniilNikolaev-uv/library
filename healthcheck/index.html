@@ -140,6 +140,49 @@
             padding: 14px 16px;
         }
 
+        .service-body {
+            display: grid;
+            gap: 10px;
+        }
+
+        .service-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .button.small {
+            padding: 7px 10px;
+            font-size: 12px;
+        }
+
+        .logs {
+            margin-top: 8px;
+            border: 1px solid #2d2d2d;
+            background: #0f0f0f;
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .logs.hidden {
+            display: none;
+        }
+
+        .logs-title {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logs-pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #d4d4d4;
+        }
+
         .dot {
             width: 10px;
             height: 10px;
@@ -254,6 +297,7 @@
     const lastUpdated = document.getElementById("lastUpdated");
     const userLabel = document.getElementById("userLabel");
     let poller = null;
+    const openedLogs = new Set();
 
     function escapeHtml(value) {
         return String(value).replace(/[&<>"]/g, (char) => {
@@ -290,17 +334,28 @@
             return `
                 <article class="service">
                     <div class="dot ${currentClass}"></div>
-                    <div>
+                    <div class="service-body">
                         <div>
                             <div class="service-name">${escapeHtml(service.name)}</div>
                             <div class="service-meta">${escapeHtml(service.target)}</div>
                             <div class="service-meta">${escapeHtml(details)} / ${escapeHtml(responseTime)}</div>
+                        </div>
+                        <div class="service-actions">
+                            <button class="button small" data-log-toggle="${escapeHtml(service.key)}">
+                                ${openedLogs.has(service.key) ? "hide logs" : "show logs"}
+                            </button>
+                        </div>
+                        <div class="logs ${openedLogs.has(service.key) ? "" : "hidden"}" id="logs-${escapeHtml(service.key)}">
+                            <div class="logs-title">container logs</div>
+                            <pre class="logs-pre">Logs are hidden.</pre>
                         </div>
                     </div>
                     <div class="status ${currentClass}">${statusLabel(service.status)}</div>
                 </article>
             `;
         }).join("");
+
+        bindLogButtons();
     }
 
     function renderSummary(services) {
@@ -381,6 +436,59 @@
             refreshBtn.disabled = false;
             refreshBtn.textContent = "refresh";
         }
+    }
+
+    async function loadLogs(serviceKey) {
+        const box = document.getElementById(`logs-${serviceKey}`);
+        if (!box) return;
+        const pre = box.querySelector(".logs-pre");
+        pre.textContent = "Loading logs...";
+
+        try {
+            const response = await fetch(`/api/logs?service=${encodeURIComponent(serviceKey)}`, {
+                method: "GET",
+                cache: "no-store",
+                headers: { "Cache-Control": "no-cache" }
+            });
+
+            if (response.status === 401) {
+                showLogin("Session expired");
+                return;
+            }
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.detail || `Logs API returned ${response.status}`);
+            }
+
+            const header = data.container ? `[${data.container}]` : "[logs]";
+            pre.textContent = `${header}\n\n${data.logs || "No logs available."}`;
+        } catch (error) {
+            pre.textContent = error.message || "Failed to load logs.";
+        }
+    }
+
+    function bindLogButtons() {
+        document.querySelectorAll("[data-log-toggle]").forEach((button) => {
+            button.onclick = async () => {
+                const serviceKey = button.getAttribute("data-log-toggle");
+                const box = document.getElementById(`logs-${serviceKey}`);
+                if (!serviceKey || !box) return;
+
+                const isHidden = box.classList.contains("hidden");
+                if (isHidden) {
+                    openedLogs.add(serviceKey);
+                    box.classList.remove("hidden");
+                    button.textContent = "hide logs";
+                    await loadLogs(serviceKey);
+                    return;
+                }
+
+                openedLogs.delete(serviceKey);
+                box.classList.add("hidden");
+                button.textContent = "show logs";
+            };
+        });
     }
 
     function startPolling() {

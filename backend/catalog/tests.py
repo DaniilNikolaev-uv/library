@@ -1,5 +1,5 @@
 from django.test import TestCase
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -66,6 +66,24 @@ class BookCoverTests(TestCase):
         self.assertEqual(book.isbn, "9785171183666")
         self.assertEqual(book.cover_url, "https://covers.openlibrary.org/b/isbn/9785171183666-M.jpg")
         mocked_lookup.assert_called_once()
+
+    @patch("django.db.models.fields.files.FieldFile.url", new_callable=PropertyMock)
+    def test_book_serializer_ignores_cover_image_storage_errors(self, mocked_url):
+        mocked_url.side_effect = RuntimeError("storage unavailable")
+        book = Book.objects.create(
+            title="Broken Storage Book",
+            publisher=self.publisher,
+            isbn="978-5-17-118366-6",
+            year=2024,
+            language="ru",
+            description="desc",
+        )
+        book.authors.add(self.author)
+        book.cover_image = "covers/test.jpg"
+
+        data = BookSerializer(instance=book).data
+
+        self.assertIsNone(data["cover_image"])
 
 
 class CatalogApiTests(TestCase):
