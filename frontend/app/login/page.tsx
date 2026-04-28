@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { getHomeRouteForRole, login, me } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
+      await refresh();
       const user = await me();
       router.replace(getHomeRouteForRole(user.role));
     } catch (e) {
