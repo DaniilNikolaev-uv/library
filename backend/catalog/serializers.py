@@ -26,6 +26,7 @@ class PublisherSerializer(serializers.ModelSerializer):
 
 class BookSerializer(serializers.ModelSerializer):
     authors = AuthorSerializer(many=True, read_only=True)
+    cover_image = serializers.SerializerMethodField()
     author_ids = serializers.PrimaryKeyRelatedField(
         queryset=Author.objects.all(), source="authors", write_only=True, many=True
     )
@@ -41,6 +42,15 @@ class BookSerializer(serializers.ModelSerializer):
             "publisher", "cover_image", "cover_url"
         ]
         read_only_fields = ["id"]
+
+    def get_cover_image(self, obj):
+        try:
+            if not obj.cover_image:
+                return None
+            return obj.cover_image.url
+        except Exception:
+            # Do not break catalog listing when external storage is unavailable.
+            return None
 
     def _resolve_cover_url(self, isbn: str | None, current_value: str | None = None) -> str:
         if isbn:
