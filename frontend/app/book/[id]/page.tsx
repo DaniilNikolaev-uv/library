@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
 import { getBook, type Book } from "@/lib/catalog";
-import { Alert } from "../../_components/ui/Alert";
-import { Badge } from "../../_components/ui/Badge";
-import { Card, CardContent } from "../../_components/ui/Card";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function BookPage() {
   const params = useParams<{ id: string }>();
@@ -35,7 +35,7 @@ export default function BookPage() {
   }, [id]);
 
   if (loading) return <div className="text-sm text-[--color-muted]">Загрузка…</div>;
-  if (error) return <Alert variant="danger">{error}</Alert>;
+  if (error) return <Alert variant="destructive">{error}</Alert>;
   if (!book) return null;
 
   return (
@@ -54,8 +54,8 @@ export default function BookPage() {
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                {book.year ? <Badge variant="muted">{book.year}</Badge> : null}
-                {book.isbn ? <Badge variant="muted">{`ISBN ${book.isbn}`}</Badge> : null}
+                {book.year ? <Badge variant="secondary">{book.year}</Badge> : null}
+                {book.isbn ? <Badge variant="secondary">{`ISBN ${book.isbn}`}</Badge> : null}
               </div>
 
               <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[--color-text]">

@@ -5,13 +5,19 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ApiError } from "@/lib/api";
 import { listBooks, listCategories, type Book, type Category } from "@/lib/catalog";
-import { Alert } from "../_components/ui/Alert";
-import { Badge } from "../_components/ui/Badge";
-import { Button } from "../_components/ui/Button";
-import { Card, CardContent, CardHeader } from "../_components/ui/Card";
-import { Checkbox } from "../_components/ui/Checkbox";
-import { Input } from "../_components/ui/Input";
-import { Select } from "../_components/ui/Select";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Paginated<T> = {
   results?: T[];
@@ -81,7 +87,7 @@ export default function CatalogPage() {
           Каталог книг
         </h1>
         <div className="text-sm text-[--color-muted]">
-          Позиции: <Badge variant="muted">{books.length}</Badge>
+          Позиции: <Badge variant="secondary">{books.length}</Badge>
         </div>
       </div>
 
@@ -108,18 +114,26 @@ export default function CatalogPage() {
               placeholder="Год"
               inputMode="numeric"
             />
-            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="">Все категории</option>
-              {categories.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
+            <Select
+              value={category || "all"}
+              onValueChange={(value) => setCategory(value === "all" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Все категории" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все категории</SelectItem>
+                {categories.map((item) => (
+                  <SelectItem key={item.id} value={String(item.id)}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
             <label className="flex h-9 items-center gap-2 rounded-md border border-[--color-border] bg-[--color-surface] px-3 text-sm text-[--color-muted]">
               <Checkbox
                 checked={availableOnly}
-                onChange={(e) => setAvailableOnly(e.target.checked)}
+                onCheckedChange={(checked) => setAvailableOnly(checked === true)}
               />
               Только доступные
             </label>
@@ -129,7 +143,7 @@ export default function CatalogPage() {
       </Card>
 
       {error ? (
-        <Alert variant="danger">{error}</Alert>
+        <Alert variant="destructive">{error}</Alert>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
