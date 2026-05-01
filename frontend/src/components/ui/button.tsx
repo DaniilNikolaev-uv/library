@@ -7,17 +7,18 @@ import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/cn";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:brightness-110",
+        default:
+          "border border-blue-300/20 bg-primary text-primary-foreground shadow-lg shadow-blue-950/20 hover:-translate-y-0.5 hover:brightness-110",
         secondary:
-          "border border-border bg-surface text-foreground hover:bg-surface-2",
-        ghost: "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+          "border border-border/90 bg-surface/90 text-foreground shadow-sm shadow-black/10 hover:-translate-y-0.5 hover:bg-surface-2",
+        ghost: "text-muted-foreground hover:bg-surface-2/80 hover:text-foreground",
         destructive:
-          "border border-red-800/50 bg-red-950/40 text-red-200 hover:bg-red-950/70",
-        outline: "border border-border bg-transparent hover:bg-surface-2",
+          "border border-red-800/50 bg-red-950/40 text-red-200 hover:-translate-y-0.5 hover:bg-red-950/70",
+        outline: "border border-border bg-transparent hover:-translate-y-0.5 hover:bg-surface-2",
       },
       size: {
         sm: "h-8 px-3",

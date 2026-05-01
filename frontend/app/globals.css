@@ -1,16 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #090b10;
-  --surface: #11141b;
-  --surface-2: #161b25;
-  --border: #252c3a;
-  --text: #e6ebf5;
-  --muted: #9aa5ba;
-  --accent: #3b82f6;
-  --accent-foreground: #eff6ff;
-  --ring: rgba(59, 130, 246, 0.45);
-  --shadow: rgba(0, 0, 0, 0.18);
+  --bg: #080a0d;
+  --surface: #10141a;
+  --surface-2: #171d26;
+  --surface-3: #202836;
+  --border: #2d3645;
+  --border-soft: rgba(218, 226, 240, 0.08);
+  --text: #edf2f7;
+  --muted: #9ba8ba;
+  --muted-2: #6f7d90;
+  --accent: #5b8cff;
+  --accent-2: #d6a84f;
+  --accent-foreground: #f7fbff;
+  --ring: rgba(91, 140, 255, 0.42);
+  --shadow: rgba(0, 0, 0, 0.32);
+  --font-sans-app: "IBM Plex Sans", "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-display-app: "Georgia Pro", Georgia, "Times New Roman", serif;
+  --font-mono-app: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 
   /* shadcn-compatible semantic tokens mapped to existing palette */
   --background: var(--bg);
@@ -46,8 +53,9 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-ring: var(--ring);
   --color-shadow: var(--shadow);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans-app);
+  --font-mono: var(--font-mono-app);
+  --font-display: var(--font-display-app);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface-bg);
@@ -72,34 +80,71 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #090b10;
-    --surface: #11141b;
-    --surface-2: #161b25;
-    --border: #252c3a;
-    --text: #e6ebf5;
-    --muted: #9aa5ba;
-    --accent: #3b82f6;
+    --bg: #080a0d;
+    --surface: #10141a;
+    --surface-2: #171d26;
+    --surface-3: #202836;
+    --border: #2d3645;
+    --border-soft: rgba(218, 226, 240, 0.08);
+    --text: #edf2f7;
+    --muted: #9ba8ba;
+    --muted-2: #6f7d90;
+    --accent: #5b8cff;
+    --accent-2: #d6a84f;
     --accent-foreground: #eff6ff;
-    --ring: rgba(59, 130, 246, 0.45);
-    --shadow: rgba(0, 0, 0, 0.18);
+    --ring: rgba(91, 140, 255, 0.42);
+    --shadow: rgba(0, 0, 0, 0.32);
   }
 }
 
-body {
-  background: var(--bg);
+* {
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+::selection {
+  background: rgba(214, 168, 79, 0.32);
   color: var(--text);
-  font-family: var(--font-sans), system-ui, -apple-system, Segoe UI, Roboto,
-    Arial, Helvetica, sans-serif;
+}
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 24% 0%, rgba(91, 140, 255, 0.15), transparent 31rem),
+    radial-gradient(circle at 92% 18%, rgba(214, 168, 79, 0.09), transparent 26rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 32px),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), ui-sans-serif, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv11";
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 88px 88px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+h1,
+h2 {
+  font-family: var(--font-display), var(--font-sans), serif;
+  letter-spacing: 0;
 }
 
 /* Dense dashboard baseline for legacy/native controls across all routes */
 input,
 select,
 textarea {
-  min-height: 2.25rem;
-  border-radius: 0.375rem;
+  min-height: 2.4rem;
+  border-radius: 0.45rem;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: rgba(16, 20, 26, 0.86);
   color: var(--text);
 }
 
@@ -109,7 +154,7 @@ textarea::placeholder {
 }
 
 button {
-  border-radius: 0.375rem;
+  border-radius: 0.45rem;
 }
 
 table {
@@ -120,4 +165,32 @@ table {
 th,
 td {
   border-color: var(--border);
+}
+
+.app-panel {
+  border: 1px solid var(--border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015)),
+    rgba(16, 20, 26, 0.9);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.app-link-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.app-link-card::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.12), transparent 36%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.app-link-card:hover::before {
+  opacity: 1;
 }
